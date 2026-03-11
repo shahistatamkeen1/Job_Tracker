@@ -1,0 +1,28 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+
+async function request(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Request failed");
+  }
+  return res.json();
+}
+
+export const api = {
+  listJobs: () => request("/jobs"),
+  createJob: (payload) => request("/jobs", { method: "POST", body: JSON.stringify(payload) }),
+  updateStatus: (jobId, payload) =>
+    request(`/jobs/${jobId}/status`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteJob: (jobId) => request(`/jobs/${jobId}`, { method: "DELETE" }),
+  chatAboutJD: (payload) => request("/ai/chat", { method: "POST", body: JSON.stringify(payload) }),
+  atsResume: (payload) =>
+    request("/ai/ats-resume", { method: "POST", body: JSON.stringify(payload) }),
+};
