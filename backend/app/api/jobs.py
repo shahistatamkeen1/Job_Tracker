@@ -1,0 +1,108 @@
+from datetime import datetime
+
+from bson import ObjectId
+from bson.errors import InvalidId
+from fastapi import APIRouter, HTTPException
+
+from app.db import get_jobs_collection
+from app.schemas.job import JobApplicationCreate, JobApplicationUpdate, StatusUpdateRequest
+from app.services.ai_service import ai_service
+
+
+router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+def serialize(doc: dict) -> dict:
+    doc["id"] = str(doc.pop("_id"))
+    return doc
+
+
+def parse_object_id(job_id: str) -> ObjectId:
+    try:
+        return ObjectId(job_id)
+    except InvalidId as exc:
+        raise HTTPException(status_code=400, detail="Invalid job ID") from exc
+
+
+@router.get("")
+async def list_jobs():
+    collection = get_jobs_collection()
+    docs = await collection.find().sort("updated_at", -1).to_list(length=500)
+    return [serialize(d) for d in docs]
+
+
+@router.post("")
+async def create_job(payload: JobApplicationCreate):
+    collection = get_jobs_collection()
+    now = datetime.utcnow()
+    doc = {
+        **payload.model_dump(),
+        "ai_rejection_reason": "",
+        "status_history": [{"status": payload.status, "note": "Initial status", "at": now.isoformat()}],
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await collection.insert_one(doc)
+    created = await collection.find_one({"_id": result.inserted_id})
+    return serialize(created)
+
+
+@router.put("/{job_id}")
+async def update_job(job_id: str, payload: JobApplicationUpdate):
+    collection = get_jobs_collection()
+    object_id = parse_object_id(job_id)
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    updates["updated_at"] = datetime.utcnow()
+
+    result = await collection.update_one({"_id": object_id}, {"$set": updates})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Job application not found")
+
+    updated = await collection.find_one({"_id": object_id})
+    return serialize(updated)
+
+
+@router.patch("/{job_id}/status")
+async def update_status(job_id: str, payload: StatusUpdateRequest):
+    collection = get_jobs_collection()
+    object_id = parse_object_id(job_id)
+    job = await collection.find_one({"_id": object_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job application not found")
+
+    now = datetime.utcnow()
+    history = job.get("status_history", [])
+    history.append({"status": payload.status, "note": payload.note, "at": now.isoformat()})
+
+    ai_reason = job.get("ai_rejection_reason", "")
+    if payload.status == "rejected":
+        ai_reason = ai_service.analyze_rejection(
+            job_description=job["job_description"],
+            user_notes=f"{job.get('notes', '')}\n{payload.note}",
+            status_history=history,
+        )
+
+    await collection.update_one(
+        {"_id": object_id},
+        {
+            "$set": {
+                "status": payload.status,
+                "status_history": history,
+                "ai_rejection_reason": ai_reason,
+                "updated_at": now,
+            }
+        },
+    )
+
+    updated = await collection.find_one({"_id": object_id})
+    return serialize(updated)
+
+
+@router.delete("/{job_id}")
+async def delete_job(job_id: str):
+    collection = get_jobs_collection()
+    object_id = parse_object_id(job_id)
+    result = await collection.delete_one({"_id": object_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Job application not found")
+    return {"deleted": True}
