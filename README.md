@@ -1,23 +1,5 @@
-# AI Job Tracker (React + FastAPI + MongoDB Atlas)
-
-A full-stack job application tracker with:
-
-- Application CRUD and status pipeline (applied, interview, rejected, offer)
-- Automatic AI rejection reason analysis when status changes to rejected
-- AI chatbot for JD analysis, skill suggestions, and interview prep guidance
-- ATS resume section with score, gaps, and improved resume draft
-
-## Project Structure
-
-- `backend/` FastAPI API + MongoDB Atlas integration + AI services
-- `frontend/` React (Vite) UI
-
-## 1. Backend Setup
-
-1. Go to backend folder:
-   - `cd backend`
-2. Create virtual environment:
-   - `python -m venv .venv`
+   hello .oy 
+ `python -m venv .venv`
    - `.venv\Scripts\activate`
 3. Install dependencies:
    - `pip install -r requirements.txt`
@@ -59,5 +41,10 @@ Frontend URL: `http://localhost:5173`
 
 ## Notes
 
-- If `OPENAI_API_KEY` is empty, the app still works with fallback AI responses.
-- For production use, add authentication and encrypt sensitive user data.
+
+
+
+
+
+
+- ` is empty, the app still works with fallback AI responses.
