@@ -48,3 +48,5 @@ Frontend URL: `http://localhost:5173`
 
 
 - ` is empty, the app still works with fallback AI responses.
+
+hello 
