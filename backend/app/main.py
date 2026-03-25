@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.ai import router as ai_router
 from app.api.jobs import router as jobs_router
+from app.api.auth import router as auth_router
+from app.api.profile import router as profile_router
 from app.config import settings
 
 
@@ -24,3 +26,5 @@ async def health():
 
 app.include_router(jobs_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(profile_router, prefix="/api")

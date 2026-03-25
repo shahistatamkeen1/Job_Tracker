@@ -1,9 +1,40 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    // Load Google SDK
+    window.google?.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: handleGoogleLogin,
+    });
+    window.google?.accounts.id.renderButton(
+      document.getElementById("googleLoginBtn"),
+      { theme: "outline", size: "large", width: "100%" }
+    );
+  }, []);
+
+  const handleGoogleLogin = async (response) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: response.credential }),
+      });
+      const data = await res.json();
+      if (data.email) {
+        onLogin(data.email);
+      } else {
+        setError(data.detail || "Google login failed");
+      }
+    } catch (err) {
+      setError("Error during Google login");
+      console.error(err);
+    }
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -60,6 +91,19 @@ export default function LoginPage({ onLogin }) {
             Sign In
           </button>
         </form>
+
+        <div className="divider">
+          <span>OR</span>
+        </div>
+
+        <div id="googleLoginBtn" className="google-login-container"></div>
+
+        <p className="login-footer">
+          Don't have an account?{" "}
+          <a href="#signup" className="signup-link">
+            Sign up
+          </a>
+        </p>
       </section>
     </div>
   );
