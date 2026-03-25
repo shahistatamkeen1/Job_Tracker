@@ -198,6 +198,51 @@ button,
   font-size: 1rem;
 }
 
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.google-login-container {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.google-login-container > div {
+  width: 100%;
+}
+
+.login-footer {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+  margin: 16px 0 0;
+}
+
+.signup-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 160ms ease;
+}
+
+.signup-link:hover {
+  color: #ff7f4f;
+}
+
 .content-panel {
   position: relative;
   z-index: 1;

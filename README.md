@@ -41,10 +41,27 @@ Backend URL: `http://localhost:8000`
    - `npm install`
 3. Create env file:
    - copy `.env.example` to `.env`
+   - Add your Google Client ID (see Google OAuth setup below)
 4. Run frontend:
    - `npm run dev`
 
 Frontend URL: `http://localhost:5173`
+
+## 3. Google OAuth Setup
+
+To enable Google login:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project
+3. Enable the OAuth 2.0 API
+4. Create OAuth 2.0 credentials:
+   - Type: Web application
+   - Authorized JavaScript origins: `http://localhost:5173`
+   - Authorized redirect URIs: `http://localhost:8000/api/auth/google`
+5. Copy the Client ID
+6. Add to your environment files:
+   - Frontend: `VITE_GOOGLE_CLIENT_ID=your_client_id` in `.env`
+   - Backend: `GOOGLE_CLIENT_ID=your_client_id` in `.env`
 
 ## API Endpoints
 
@@ -56,6 +73,7 @@ Frontend URL: `http://localhost:5173`
 - `POST /api/ai/chat`
 - `POST /api/ai/analyze-rejection`
 - `POST /api/ai/ats-resume`
+- `POST /api/auth/google` (Google OAuth login)
 
 ## Notes
 

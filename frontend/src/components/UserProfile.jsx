@@ -19,6 +19,9 @@ export default function UserProfile({ userEmail }) {
   const [profile, setProfile] = useState(() => getProfile(userEmail));
   const [skillInput, setSkillInput] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [resumeText, setResumeText] = useState("");
+  const [showResumeInput, setShowResumeInput] = useState(false);
 
   const initials = useMemo(() => {
     return (profile.fullName || "U")
@@ -72,6 +75,112 @@ export default function UserProfile({ userEmail }) {
     setTimeout(() => setSaveStatus(""), 1500);
   }
 
+  async function extractProfileData() {
+    if (!resumeText && !profile.linkedin) {
+      alert("Please provide either a resume or LinkedIn URL");
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      const response = await fetch("http://localhost:8000/api/profile/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resume_text: resumeText,
+          linkedin_url: profile.linkedin,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.detail || data.error || "Failed to extract profile data");
+        setExtracting(false);
+        return;
+      }
+
+      // Merge extracted data with existing profile
+      setProfile((prev) => ({
+        ...prev,
+        skills: [...prev.skills, ...(data.skills || [])].filter((v, i, a) => a.indexOf(v) === i), // Unique
+        experiences: [...prev.experiences, ...(data.experiences || [])],
+        projects: [...prev.projects, ...(data.projects || [])],
+        publications: [...prev.publications, ...(data.publications || [])],
+        certifications: [...prev.certifications, ...(data.certifications || [])],
+        achievements: [...prev.achievements, ...(data.achievements || [])],
+      }));
+
+      setSaveStatus("Profile data extracted and merged!");
+      setShowResumeInput(false);
+      setResumeText("");
+      setTimeout(() => setSaveStatus(""), 2000);
+    } catch (error) {
+      console.error("Error extracting profile:", error);
+      alert("Error extracting profile data. Please try again.");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function extractProfileFromFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = [".pdf", ".docx", ".doc"];
+    const fileName = file.name.toLowerCase();
+    const isValid = validTypes.some((type) => fileName.endsWith(type));
+
+    if (!isValid) {
+      alert("Please upload a valid resume file (PDF, DOCX, or DOC)");
+      event.target.value = "";
+      return;
+    }
+
+    setExtracting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("http://localhost:8000/api/profile/extract-from-file", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.detail || "Failed to extract profile data from file");
+        setExtracting(false);
+        event.target.value = "";
+        return;
+      }
+
+      // Merge extracted data with existing profile
+      setProfile((prev) => ({
+        ...prev,
+        skills: [...prev.skills, ...(data.skills || [])].filter((v, i, a) => a.indexOf(v) === i),
+        experiences: [...prev.experiences, ...(data.experiences || [])],
+        projects: [...prev.projects, ...(data.projects || [])],
+        publications: [...prev.publications, ...(data.publications || [])],
+        certifications: [...prev.certifications, ...(data.certifications || [])],
+        achievements: [...prev.achievements, ...(data.achievements || [])],
+      }));
+
+      setSaveStatus(`Profile extracted from ${file.name}!`);
+      setShowResumeInput(false);
+      setResumeText("");
+      setTimeout(() => setSaveStatus(""), 2000);
+    } catch (error) {
+      console.error("Error extracting profile from file:", error);
+      alert("Error extracting profile data from file. Please try again.");
+    } finally {
+      setExtracting(false);
+      event.target.value = "";
+    }
+  }
+
   return (
     <section className="profile-page">
       <article className="card profile-hero">
@@ -100,6 +209,51 @@ export default function UserProfile({ userEmail }) {
           <input value={profile.linkedin} onChange={(e) => updateField("linkedin", e.target.value)} placeholder="LinkedIn URL" />
           <textarea rows={5} value={profile.about} onChange={(e) => updateField("about", e.target.value)} placeholder="Professional Summary / About" />
         </div>
+        
+        <div className="section-topline" style={{ marginTop: "16px" }}>
+          <h4>Auto-Extract Profile Data</h4>
+          <button type="button" className="secondary-btn" onClick={() => setShowResumeInput(!showResumeInput)}>
+            {showResumeInput ? "Hide" : "Upload Resume or Paste Text"}
+          </button>
+        </div>
+        
+        {showResumeInput && (
+          <div style={{ marginTop: "12px" }}>
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", marginBottom: "6px", fontWeight: "600" }}>
+                Upload Resume File (PDF, DOCX, DOC)
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.docx,.doc"
+                onChange={extractProfileFromFile}
+                disabled={extracting}
+                style={{ marginBottom: "12px" }}
+              />
+            </div>
+
+            <div style={{ textAlign: "center", color: "#999", marginBottom: "12px" }}>OR</div>
+
+            <textarea
+              rows={6}
+              value={resumeText}
+              onChange={(e) => setResumeText(e.target.value)}
+              placeholder="Paste your resume content here"
+              style={{ width: "100%", marginBottom: "8px" }}
+            />
+            <button
+              type="button"
+              className="primary"
+              onClick={extractProfileData}
+              disabled={extracting || (!resumeText && !profile.linkedin)}
+            >
+              {extracting ? "Extracting..." : "Extract & Auto-Fill from Text"}
+            </button>
+            <p style={{ fontSize: "0.85rem", color: "#666", marginTop: "8px" }}>
+              Upload a resume file or paste text to automatically populate skills, experience, projects, certifications, and achievements.
+            </p>
+          </div>
+        )}
       </article>
 
       <article className="card">
