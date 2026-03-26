@@ -7,6 +7,14 @@ export default function NavBar({ tabs, activeTab, onTabChange, userEmail, onLogo
     .map((part) => part[0]?.toUpperCase() || "")
     .join("") || "U";
 
+  const userName = userEmail
+    .split("@")[0]
+    .split(/[._-]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+    .toUpperCase();
+
   return (
     <header className="top-nav" aria-label="Main Navigation">
       <button
@@ -32,7 +40,7 @@ export default function NavBar({ tabs, activeTab, onTabChange, userEmail, onLogo
       </nav>
 
       <div className="top-nav-user">
-        <span>{userEmail}</span>
+        <span className="user-name">{userName}</span>
         <button type="button" className="logout-btn" onClick={onLogout}>
           Logout
         </button>

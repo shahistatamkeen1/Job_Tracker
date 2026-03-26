@@ -19,10 +19,24 @@ async function request(path, options = {}) {
 export const api = {
   listJobs: () => request("/jobs"),
   createJob: (payload) => request("/jobs", { method: "POST", body: JSON.stringify(payload) }),
+  updateJob: (jobId, payload) =>
+    request(`/jobs/${jobId}`, { method: "PUT", body: JSON.stringify(payload) }),
   updateStatus: (jobId, payload) =>
     request(`/jobs/${jobId}/status`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteJob: (jobId) => request(`/jobs/${jobId}`, { method: "DELETE" }),
   chatAboutJD: (payload) => request("/ai/chat", { method: "POST", body: JSON.stringify(payload) }),
   atsResume: (payload) =>
     request("/ai/ats-resume", { method: "POST", body: JSON.stringify(payload) }),
+  
+  // Gmail integration
+  getGmailAuthUrl: () => request("/auth/gmail/login"),
+  syncGmail: (accessToken) =>
+    request("/jobs/sync/gmail", {
+      method: "POST",
+      body: JSON.stringify({
+        access_token: accessToken,
+        token_type: "Bearer",
+      }),
+    }),
 };
+

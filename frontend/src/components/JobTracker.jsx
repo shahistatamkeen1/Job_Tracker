@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { logActivity } from "../lib/activity";
+import GmailSync from "./GmailSync";
 
 const statuses = ["applied", "interview", "rejected", "offer"];
 
@@ -81,52 +82,62 @@ export default function JobTracker() {
     }
   }
 
+  function handleGmailSync(newJobs) {
+    loadJobs(); // Reload jobs after Gmail sync
+  }
+
   return (
     <section className="stack-grid">
-      <article className="card">
-        <h2>Add Application</h2>
-        <form onSubmit={submitJob} className="form-grid">
-          <input
-            placeholder="Company"
-            value={form.company}
-            onChange={(e) => setForm({ ...form, company: e.target.value })}
-            required
-          />
-          <input
-            placeholder="Role"
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-            required
-          />
-          <input
-            type="date"
-            value={form.applied_on}
-            onChange={(e) => setForm({ ...form, applied_on: e.target.value })}
-            required
-          />
-          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            {statuses.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <textarea
-            rows={5}
-            placeholder="Paste Job Description"
-            value={form.job_description}
-            onChange={(e) => setForm({ ...form, job_description: e.target.value })}
-            required
-          />
-          <textarea
-            rows={3}
-            placeholder="Notes"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
-          <button type="submit">Save Application</button>
-        </form>
-      </article>
+      <div className="form-import-row">
+        <article className="card">
+          <h2>Add Application</h2>
+          <form onSubmit={submitJob} className="form-grid">
+            <input
+              placeholder="Company"
+              value={form.company}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              required
+            />
+            <input
+              placeholder="Role"
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              required
+            />
+            <input
+              type="date"
+              value={form.applied_on}
+              onChange={(e) => setForm({ ...form, applied_on: e.target.value })}
+              required
+            />
+            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              {statuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <textarea
+              rows={5}
+              placeholder="Paste Job Description"
+              value={form.job_description}
+              onChange={(e) => setForm({ ...form, job_description: e.target.value })}
+              required
+            />
+            <textarea
+              rows={3}
+              placeholder="Notes"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+            <button type="submit">Save Application</button>
+          </form>
+        </article>
+
+        <article className="card">
+          <GmailSync onSync={handleGmailSync} />
+        </article>
+      </div>
 
       <article className="card">
         <h2>Pipeline Overview</h2>
