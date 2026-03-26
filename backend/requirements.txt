@@ -7,6 +7,10 @@ python-dotenv==1.1.1
 openai==1.101.0
 python-multipart==0.0.20
 google-auth==2.25.2
+google-auth-oauthlib==1.2.1
+google-auth-httplib2==0.2.0
+google-api-python-client==2.104.0
 requests==2.31.0
 pypdf==4.0.1
 python-docx==0.8.11
+beautifulsoup4==4.12.3

@@ -1,15 +1,23 @@
 from datetime import datetime
+from pydantic import BaseModel
 
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException
+from google.oauth2.credentials import Credentials
 
 from app.db import get_jobs_collection
 from app.schemas.job import JobApplicationCreate, JobApplicationUpdate, StatusUpdateRequest
 from app.services.ai_service import ai_service
+from app.services.gmail_service import gmail_service
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+class GmailSyncRequest(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
 
 
 def serialize(doc: dict) -> dict:
@@ -96,6 +104,82 @@ async def update_status(job_id: str, payload: StatusUpdateRequest):
 
     updated = await collection.find_one({"_id": object_id})
     return serialize(updated)
+
+
+@router.delete("/{job_id}")
+async def delete_job(job_id: str):
+    collection = get_jobs_collection()
+    object_id = parse_object_id(job_id)
+    result = await collection.delete_one({"_id": object_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Job application not found")
+    return {"deleted": True}
+
+
+@router.post("/sync/gmail")
+async def sync_gmail(request: GmailSyncRequest):
+    """Sync job applications from Gmail and create entries in the database."""
+    try:
+        # Create credentials from access token
+        credentials = Credentials(token=request.access_token)
+        gmail_service.set_credentials(credentials)
+
+        # Fetch job emails
+        job_emails = gmail_service.get_job_emails(max_results=50)
+
+        if not job_emails:
+            return {"synced": 0, "jobs": [], "message": "No job emails found"}
+
+        collection = get_jobs_collection()
+        created_jobs = []
+        now = datetime.utcnow()
+
+        for email_data in job_emails:
+            # Check if job already exists (by company and role combination)
+            existing = await collection.find_one({
+                "company": email_data["company"],
+                "role": email_data["role"],
+                "source": "gmail"
+            })
+
+            if existing:
+                continue  # Skip duplicate
+
+            # Create job application entry
+            job_doc = {
+                "company": email_data["company"],
+                "role": email_data["role"],
+                "job_description": email_data["email_body_preview"],
+                "status": email_data["status"],
+                "applied_on": email_data["applied_on"],
+                "notes": f"Imported from email: {email_data['email_subject']}",
+                "ai_rejection_reason": "",
+                "status_history": [
+                    {
+                        "status": email_data["status"],
+                        "note": "Imported from Gmail",
+                        "at": now.isoformat()
+                    }
+                ],
+                "source": "gmail",
+                "email_subject": email_data["email_subject"],
+                "email_from": email_data["email_from"],
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            result = await collection.insert_one(job_doc)
+            created = await collection.find_one({"_id": result.inserted_id})
+            created_jobs.append(serialize(created))
+
+        return {
+            "synced": len(created_jobs),
+            "jobs": created_jobs,
+            "message": f"Successfully synced {len(created_jobs)} job applications from Gmail"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error syncing Gmail: {str(e)}")
 
 
 @router.delete("/{job_id}")

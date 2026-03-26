@@ -3,12 +3,17 @@ from pydantic import BaseModel
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from app.config import settings
+from app.services.gmail_service import gmail_service
 
 router = APIRouter(tags=["auth"])
 
 
 class GoogleTokenRequest(BaseModel):
     token: str
+
+
+class GmailAuthResponse(BaseModel):
+    auth_url: str
 
 
 @router.post("/auth/google")
@@ -49,3 +54,31 @@ async def google_login(request: GoogleTokenRequest):
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/auth/gmail/login")
+async def gmail_login():
+    """Get Gmail OAuth2 authorization URL"""
+    try:
+        auth_url, state = gmail_service.get_auth_url()
+        return {"auth_url": auth_url, "state": state}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating Gmail auth URL: {str(e)}")
+
+
+@router.get("/auth/gmail/callback")
+async def gmail_callback(code: str):
+    """Handle Gmail OAuth2 callback"""
+    try:
+        credentials = gmail_service.get_credentials_from_code(code)
+        
+        # Convert credentials to a format we can send to frontend
+        return {
+            "access_token": credentials.token,
+            "token_type": "Bearer",
+            "message": "Gmail authorization successful"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error handling Gmail callback: {str(e)}")
+
+
