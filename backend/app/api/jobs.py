@@ -20,6 +20,15 @@ class GmailSyncRequest(BaseModel):
     token_type: str = "Bearer"
 
 
+class AIInsightRequest(BaseModel):
+    company: str
+    role: str
+    job_description: str
+    status: str
+    notes: str = ""
+    description: str = ""
+
+
 def serialize(doc: dict) -> dict:
     doc["id"] = str(doc.pop("_id"))
     return doc
@@ -181,6 +190,63 @@ async def sync_gmail(request: GmailSyncRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error syncing Gmail: {str(e)}")
 
+
+@router.post("/{job_id}/generate-insight")
+async def generate_ai_insight(job_id: str):
+    """Generate AI insight for a specific job application"""
+    try:
+        collection = get_jobs_collection()
+        object_id = parse_object_id(job_id)
+        job = await collection.find_one({"_id": object_id})
+        
+        if not job:
+            raise HTTPException(status_code=404, detail="Job application not found")
+        
+        insight = ai_service.generate_application_insight(
+            company=job.get("company", ""),
+            role=job.get("role", ""),
+            job_description=job.get("job_description", ""),
+            status=job.get("status", ""),
+            notes=job.get("notes", ""),
+            description=job.get("description", "")
+        )
+        
+        # Update the job with the AI insight
+        await collection.update_one(
+            {"_id": object_id},
+            {
+                "$set": {
+                    "ai_rejection_reason": insight,
+                    "updated_at": datetime.utcnow(),
+                }
+            }
+        )
+        
+        return {
+            "insight": insight,
+            "message": "AI insight generated successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating AI insight: {str(e)}")
+
+
+@router.post("/ai-insight")
+async def generate_insight_direct(request: AIInsightRequest):
+    """Generate AI insight without saving to database"""
+    try:
+        insight = ai_service.generate_application_insight(
+            company=request.company,
+            role=request.role,
+            job_description=request.job_description,
+            status=request.status,
+            notes=request.notes,
+            description=request.description
+        )
+        return {"insight": insight}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating AI insight: {str(e)}")
 
 @router.delete("/{job_id}")
 async def delete_job(job_id: str):

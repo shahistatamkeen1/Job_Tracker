@@ -69,21 +69,63 @@ class AIService:
 
         prompt = (
             "You are a career coach. Analyze why this job application may have been rejected. "
-            "Provide a concise paragraph with practical suggestions."
+            "Provide a concise paragraph (2-3 sentences) with practical suggestions. Be specific about what could improve the application."
         )
-        details = {
-            "job_description": job_description,
-            "user_notes": user_notes,
-            "status_history": status_history,
-        }
-        response = self.client.responses.create(
+        details = (
+            f"Job Description:\n{job_description}\n\n"
+            f"User Notes:\n{user_notes}\n\n"
+            f"Status History:\n{json.dumps(status_history, indent=2)}"
+        )
+        
+        response = self.client.chat.completions.create(
             model=settings.openai_model,
-            input=[
+            messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": json.dumps(details)},
+                {"role": "user", "content": details},
             ],
+            max_tokens=300,
+            temperature=0.7,
         )
-        return response.output_text
+        return response.choices[0].message.content
+
+    def generate_application_insight(
+        self,
+        company: str,
+        role: str,
+        job_description: str,
+        status: str,
+        notes: str,
+        description: str = ""
+    ) -> str:
+        """Generate AI insight for any application (not just rejected ones)"""
+        if not self.enabled:
+            return f"Analysis pending for {role} at {company}. Review the job description and your application details to identify improvement areas."
+
+        prompt = (
+            "You are an expert career coach and recruiter. Analyze this job application and provide strategic insights. "
+            "Consider the role, company, job description, application status, and notes. "
+            "Provide 2-3 concrete, actionable recommendations to strengthen the application. "
+            "Be specific and reference details from the job description."
+        )
+        details = (
+            f"Company: {company}\n"
+            f"Role: {role}\n"
+            f"Status: {status}\n"
+            f"Job Description:\n{job_description}\n\n"
+            f"Application Description:\n{description}\n\n"
+            f"Notes:\n{notes}"
+        )
+        
+        response = self.client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": details},
+            ],
+            max_tokens=400,
+            temperature=0.7,
+        )
+        return response.choices[0].message.content
 
     def chat_about_jd(self, job_description: str, message: str, history: list[dict]) -> str:
         if not self.enabled:
@@ -105,8 +147,13 @@ class AIService:
         convo.extend(history[-8:])
         convo.append({"role": "user", "content": message})
 
-        response = self.client.responses.create(model=settings.openai_model, input=convo)
-        return response.output_text
+        response = self.client.chat.completions.create(
+            model=settings.openai_model,
+            messages=convo,
+            max_tokens=500,
+            temperature=0.7,
+        )
+        return response.choices[0].message.content
 
     def ats_resume_feedback(self, job_description: str, resume_text: str) -> dict:
         if not self.enabled:
@@ -133,18 +180,20 @@ class AIService:
             "PROFESSIONAL SUMMARY, CORE SKILLS, PROFESSIONAL EXPERIENCE, PROJECTS, EDUCATION, CERTIFICATIONS, ACHIEVEMENTS. "
             "Use concise bullets and quantified impact where possible."
         )
-        response = self.client.responses.create(
+        response = self.client.chat.completions.create(
             model=settings.openai_model,
-            input=[
+            messages=[
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
                     "content": json.dumps({"job_description": job_description, "resume_text": resume_text}),
                 },
             ],
+            max_tokens=1500,
+            temperature=0.5,
         )
 
-        text = response.output_text.strip()
+        text = response.choices[0].message.content.strip()
         try:
             data = json.loads(text)
             original_score = int(data.get("score", 0))

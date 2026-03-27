@@ -9,6 +9,7 @@ export default function JobTracker() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [generatingInsight, setGeneratingInsight] = useState(null); // Track which job is generating
   const [form, setForm] = useState({
     company: "",
     role: "",
@@ -79,6 +80,24 @@ export default function JobTracker() {
       loadJobs();
     } catch (e) {
       setError(e.message);
+    }
+  }
+
+  async function generateAIInsight(jobId) {
+    try {
+      setGeneratingInsight(jobId);
+      const response = await api.generateJobInsight(jobId);
+      
+      // Update the job in state with the new insight
+      setJobs(jobs.map(job => 
+        job.id === jobId 
+          ? { ...job, ai_rejection_reason: response.insight }
+          : job
+      ));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGeneratingInsight(null);
     }
   }
 
@@ -177,7 +196,19 @@ export default function JobTracker() {
                         ))}
                       </select>
                     </td>
-                    <td>{job.ai_rejection_reason || "No analysis yet"}</td>
+                    <td>
+                      {job.ai_rejection_reason ? (
+                        <span>{job.ai_rejection_reason}</span>
+                      ) : (
+                        <button 
+                          className="ai-btn"
+                          onClick={() => generateAIInsight(job.id)}
+                          disabled={generatingInsight === job.id}
+                        >
+                          {generatingInsight === job.id ? "Generating..." : "Generate Insight"}
+                        </button>
+                      )}
+                    </td>
                     <td>
                       <button className="danger" onClick={() => onDelete(job.id)}>
                         Delete
