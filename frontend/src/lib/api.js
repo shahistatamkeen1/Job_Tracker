@@ -24,6 +24,8 @@ export const api = {
   updateStatus: (jobId, payload) =>
     request(`/jobs/${jobId}/status`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteJob: (jobId) => request(`/jobs/${jobId}`, { method: "DELETE" }),
+  generateJobInsight: (jobId) =>
+    request(`/jobs/${jobId}/generate-insight`, { method: "POST" }),
   chatAboutJD: (payload) => request("/ai/chat", { method: "POST", body: JSON.stringify(payload) }),
   atsResume: (payload) =>
     request("/ai/ats-resume", { method: "POST", body: JSON.stringify(payload) }),
