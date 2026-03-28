@@ -2,7 +2,6 @@ import { useEffect } from "react";
 
 export default function GmailCallback() {
   useEffect(() => {
-    // Get authorization code from URL
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const error = params.get("error");
@@ -13,7 +12,6 @@ export default function GmailCallback() {
         window.location.origin
       );
     } else if (code) {
-      // Exchange code for token on the backend
       fetch(`http://localhost:8000/api/auth/gmail/callback?code=${code}`)
         .then((res) => res.json())
         .then((data) => {

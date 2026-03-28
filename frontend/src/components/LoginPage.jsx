@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage({ onLogin, onGoToRegister, onBackToLanding }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Load Google SDK
     window.google?.accounts.id.initialize({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
       callback: handleGoogleLogin,
     });
-    window.google?.accounts.id.renderButton(
-      document.getElementById("googleLoginBtn"),
-      { theme: "outline", size: "large", width: "100%" }
-    );
+
+    window.google?.accounts.id.renderButton(document.getElementById("googleLoginBtn"), {
+      theme: "outline",
+      size: "large",
+      width: "100%",
+    });
   }, []);
 
   const handleGoogleLogin = async (response) => {
@@ -24,7 +25,9 @@ export default function LoginPage({ onLogin }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: response.credential }),
       });
+
       const data = await res.json();
+
       if (data.email) {
         onLogin(data.email);
       } else {
@@ -52,12 +55,13 @@ export default function LoginPage({ onLogin }) {
     <div className="login-shell">
       <div className="bg-glow bg-glow-a" />
       <div className="bg-glow bg-glow-b" />
+      <div className="bg-glow bg-glow-c" />
 
       <section className="login-card" aria-labelledby="login-title">
         <p className="login-kicker">WELCOME BACK</p>
-        <h1 id="login-title">Sign in to your Job Tracker</h1>
+        <h1 id="login-title">Sign in to your CareerPulse account</h1>
         <p className="login-subtitle">
-          Manage applications, chat with AI, and optimize your resume in one place.
+          Manage applications, chat with AI, improve your resume, and keep your job search organized in one place.
         </p>
 
         <form className="form-grid" onSubmit={handleSubmit}>
@@ -98,12 +102,15 @@ export default function LoginPage({ onLogin }) {
 
         <div id="googleLoginBtn" className="google-login-container"></div>
 
-        <p className="login-footer">
-          Don't have an account?{" "}
-          <a href="#signup" className="signup-link">
-            Sign up
-          </a>
-        </p>
+        <div className="auth-alt-actions">
+          <button type="button" className="text-action-btn" onClick={onGoToRegister}>
+            Create new account
+          </button>
+
+          <button type="button" className="text-action-btn" onClick={onBackToLanding}>
+            Back to Landing Page
+          </button>
+        </div>
       </section>
     </div>
   );

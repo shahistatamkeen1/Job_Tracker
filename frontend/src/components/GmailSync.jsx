@@ -12,10 +12,8 @@ export default function GmailSync({ onSync }) {
       setError("");
       setSuccess("");
 
-      // Get Gmail authorization URL
       const { auth_url } = await api.getGmailAuthUrl();
 
-      // Open Gmail consent screen in a popup
       const width = 500;
       const height = 600;
       const left = window.screenX + (window.outerWidth - width) / 2;
@@ -27,19 +25,15 @@ export default function GmailSync({ onSync }) {
         `width=${width},height=${height},left=${left},top=${top}`
       );
 
-      // Listen for message from popup
       window.addEventListener("message", async (event) => {
         if (event.origin !== window.location.origin) return;
 
         if (event.data.type === "gmail-auth-success") {
           const { access_token } = event.data;
 
-          // Sync Gmail jobs
           try {
             const response = await api.syncGmail(access_token);
-            setSuccess(
-              `Successfully synced ${response.synced} job applications from Gmail!`
-            );
+            setSuccess(`Successfully synced ${response.synced} job applications from Gmail!`);
             if (onSync) {
               onSync(response.jobs);
             }
@@ -51,11 +45,8 @@ export default function GmailSync({ onSync }) {
         }
       });
 
-      // Check if popup was blocked
       if (!authWindow || authWindow.closed) {
-        setError(
-          "Popup blocked. Please enable popups for this site and try again."
-        );
+        setError("Popup blocked. Please enable popups for this site and try again.");
       }
     } catch (err) {
       setError(err.message);
@@ -69,11 +60,7 @@ export default function GmailSync({ onSync }) {
       <h3>Import from Gmail</h3>
       <p>Automatically extract job applications from your Gmail inbox</p>
 
-      <button
-        onClick={handleGmailLogin}
-        disabled={loading}
-        className="sync-button"
-      >
+      <button onClick={handleGmailLogin} disabled={loading} className="sync-button">
         {loading ? "Connecting..." : "Connect Gmail"}
       </button>
 
