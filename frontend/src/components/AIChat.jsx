@@ -35,24 +35,31 @@ export default function AIChat() {
   return (
     <section className="chat-layout">
       <article className="card">
+        <span className="section-kicker">Reference panel</span>
         <h2>Job Description</h2>
+        <p className="section-copy">Paste the full role description so the chat can answer based on the actual opening.</p>
         <textarea
-          rows={10}
-          placeholder="Paste JD here"
+          rows={14}
+          placeholder="Paste job description here"
           value={jobDescription}
           onChange={(e) => setJobDescription(e.target.value)}
         />
       </article>
+
       <article className="card">
+        <span className="section-kicker">AI assistant</span>
         <h2>AI Career Chat</h2>
+        <p className="section-copy">Ask about missing skills, projects to mention, interview preparation, or how to improve your fit.</p>
+
         <div className="chat-box">
-          {history.length === 0 && <p>Ask about skills, projects, interview prep, and better applications.</p>}
+          {history.length === 0 && <p>Ask about skills, projects, interview prep, and stronger applications.</p>}
           {history.map((msg, idx) => (
             <p key={idx} className={msg.role === "assistant" ? "bot" : "user"}>
               <strong>{msg.role === "assistant" ? "AI" : "You"}:</strong> {msg.content}
             </p>
           ))}
         </div>
+
         <form className="inline-form" onSubmit={sendMessage}>
           <input
             placeholder="Ask a question about this JD"

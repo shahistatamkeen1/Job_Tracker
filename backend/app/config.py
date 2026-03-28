@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    mongodb_uri: str = ""
+    mongodb_uri: str = "mongodb://careeruser:adminpass@ac-weizmgo-shard-00-00.mq8nben.mongodb.net:27017,ac-weizmgo-shard-00-01.mq8nben.mongodb.net:27017,ac-weizmgo-shard-00-02.mq8nben.mongodb.net:27017/?ssl=true&replicaSet=atlas-g8kljl-shard-0&authSource=admin&appName=jobtracker"
     mongodb_db_name: str = "jobtracker"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"

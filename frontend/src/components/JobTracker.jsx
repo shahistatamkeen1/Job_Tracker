@@ -9,7 +9,7 @@ export default function JobTracker() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [generatingInsight, setGeneratingInsight] = useState(null); // Track which job is generating
+  const [generatingInsight, setGeneratingInsight] = useState(null);
   const [form, setForm] = useState({
     company: "",
     role: "",
@@ -37,8 +37,8 @@ export default function JobTracker() {
   }, []);
 
   const counts = useMemo(() => {
-    return statuses.reduce((acc, s) => {
-      acc[s] = jobs.filter((j) => j.status === s).length;
+    return statuses.reduce((acc, status) => {
+      acc[status] = jobs.filter((job) => job.status === status).length;
       return acc;
     }, {});
   }, [jobs]);
@@ -87,13 +87,7 @@ export default function JobTracker() {
     try {
       setGeneratingInsight(jobId);
       const response = await api.generateJobInsight(jobId);
-      
-      // Update the job in state with the new insight
-      setJobs(jobs.map(job => 
-        job.id === jobId 
-          ? { ...job, ai_rejection_reason: response.insight }
-          : job
-      ));
+      setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, ai_rejection_reason: response.insight } : job)));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -101,15 +95,20 @@ export default function JobTracker() {
     }
   }
 
-  function handleGmailSync(newJobs) {
-    loadJobs(); // Reload jobs after Gmail sync
+  function handleGmailSync() {
+    loadJobs();
   }
 
   return (
     <section className="stack-grid">
       <div className="form-import-row">
         <article className="card">
-          <h2>Add Application</h2>
+          <div className="section-topline tracker-headline">
+            <div>
+              <span className="section-kicker">Application desk</span>
+              <h2>Add Application</h2>
+            </div>
+          </div>
           <form onSubmit={submitJob} className="form-grid">
             <input
               placeholder="Company"
@@ -130,15 +129,15 @@ export default function JobTracker() {
               required
             />
             <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+              {statuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
                 </option>
               ))}
             </select>
             <textarea
               rows={5}
-              placeholder="Paste Job Description"
+              placeholder="Paste job description"
               value={form.job_description}
               onChange={(e) => setForm({ ...form, job_description: e.target.value })}
               required
@@ -154,19 +153,32 @@ export default function JobTracker() {
         </article>
 
         <article className="card">
+          <div className="section-topline tracker-headline">
+            <div>
+              <span className="section-kicker">Email import</span>
+              <h2>Import from Gmail</h2>
+            </div>
+          </div>
           <GmailSync onSync={handleGmailSync} />
         </article>
       </div>
 
-      <article className="card">
-        <h2>Pipeline Overview</h2>
+      <article className="card pipeline-card">
+        <div className="section-topline tracker-headline">
+          <div>
+            <span className="section-kicker">Pipeline overview</span>
+            <h2>Track your applications</h2>
+          </div>
+        </div>
+
         <div className="pill-row">
-          {statuses.map((s) => (
-            <span key={s} className={`pill ${s}`}>
-              {s}: {counts[s] || 0}
+          {statuses.map((status) => (
+            <span key={status} className={`pill ${status}`}>
+              {status}: {counts[status] || 0}
             </span>
           ))}
         </div>
+
         {error && <p className="error">{error}</p>}
         {loading ? (
           <p>Loading applications...</p>
@@ -189,9 +201,9 @@ export default function JobTracker() {
                     <td>{job.role}</td>
                     <td>
                       <select value={job.status} onChange={(e) => onStatusChange(job.id, e.target.value)}>
-                        {statuses.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
+                        {statuses.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
                           </option>
                         ))}
                       </select>
@@ -200,7 +212,8 @@ export default function JobTracker() {
                       {job.ai_rejection_reason ? (
                         <span>{job.ai_rejection_reason}</span>
                       ) : (
-                        <button 
+                        <button
+                          type="button"
                           className="ai-btn"
                           onClick={() => generateAIInsight(job.id)}
                           disabled={generatingInsight === job.id}
@@ -210,7 +223,7 @@ export default function JobTracker() {
                       )}
                     </td>
                     <td>
-                      <button className="danger" onClick={() => onDelete(job.id)}>
+                      <button type="button" className="danger" onClick={() => onDelete(job.id)}>
                         Delete
                       </button>
                     </td>
