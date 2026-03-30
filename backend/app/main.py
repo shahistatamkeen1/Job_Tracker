@@ -7,6 +7,7 @@ from app.api.auth import router as auth_router
 from app.api.profile import router as profile_router
 from app.config import settings
 
+from app.api.debug_lab import router as debug_lab_router
 
 app = FastAPI(title="AI Job Tracker API", version="1.0.0")
 
@@ -28,3 +29,4 @@ app.include_router(jobs_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
+app.include_router(debug_lab_router, prefix="/api")
