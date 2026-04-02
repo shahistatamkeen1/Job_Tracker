@@ -59,6 +59,12 @@ async def create_job(payload: JobApplicationCreate):
         "created_at": now,
         "updated_at": now,
     }
+    # Convert date object to datetime for MongoDB storage
+    if isinstance(doc.get("applied_on"), datetime) is False:
+        applied_on = doc.get("applied_on")
+        if applied_on is not None:
+            doc["applied_on"] = datetime.combine(applied_on, datetime.min.time())
+    
     result = await collection.insert_one(doc)
     created = await collection.find_one({"_id": result.inserted_id})
     return serialize(created)

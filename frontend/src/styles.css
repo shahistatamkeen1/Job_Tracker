@@ -502,12 +502,12 @@ button {
   color: white;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(91, 142, 255, 0.24);
+  box-shadow: none;
 }
 
 button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 16px 28px rgba(91, 142, 255, 0.28);
+  box-shadow: none;
 }
 
 button:disabled {
@@ -1107,7 +1107,7 @@ tr:last-child td {
   color: white;
   border: none;
   font-weight: 800;
-  box-shadow: 0 10px 24px rgba(47, 127, 138, 0.2);
+  box-shadow: none;
 }
 
 .landing-primary-btn.large {
@@ -1499,7 +1499,7 @@ tr:last-child td {
   color: white;
   border: none;
   font-weight: 800;
-  box-shadow: 0 10px 24px rgba(47, 127, 138, 0.2);
+  box-shadow: none;
 }
 
 .landing-primary-btn.large {
