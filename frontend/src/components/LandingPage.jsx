@@ -1,5 +1,3 @@
-import { useRef, useState } from "react";
-
 const features = [
   "Track all job applications in one place",
   "Analyze resumes against job descriptions",
@@ -13,6 +11,7 @@ export default function LandingPage({ onGetStarted, onLoginClick }) {
   return (
     <div className="landing-v2">
       <div className="landing-topbar" />
+
       <header className="landing-navbar">
         <div className="landing-brand">
           <div className="landing-brand-logo">C</div>
@@ -22,6 +21,7 @@ export default function LandingPage({ onGetStarted, onLoginClick }) {
         <nav className="landing-nav-links">
           <a href="#overview">Overview</a>
           <a href="#features">Features</a>
+          <a href="#debuglab">AI Debug Lab</a>
           <a href="#how">How it Works</a>
           <a href="#benefits">Why CareerPulse</a>
         </nav>
@@ -73,73 +73,79 @@ export default function LandingPage({ onGetStarted, onLoginClick }) {
           </div>
         </div>
 
-        <div className="landing-hero-preview">
-          <div className="preview-glow" />
-          <div className="preview-window">
-            <div className="preview-window-top">
+        <div className="landing-hero-preview dashboard-preview-mode">
+          <div className="preview-glow dashboard-glow" />
+
+          <div className="dashboard-preview-window">
+            <div className="dashboard-preview-topbar">
               <div className="preview-dots">
                 <span />
                 <span />
                 <span />
               </div>
-              <div className="preview-title">CareerPulse Dashboard</div>
+              <div className="dashboard-preview-title">CareerPulse Dashboard</div>
             </div>
 
-            <div className="preview-toolbar">
-              <div className="preview-brand-pill">CareerPulse</div>
-              <div className="preview-score-pill">ATS Score 86%</div>
-              <div className="preview-sync-pill">Synced</div>
+            <div className="dashboard-preview-toolbar">
+              <div className="dashboard-brand-pill">CareerPulse</div>
+              <div className="dashboard-score-pill">ATS Score 86%</div>
+              <div className="dashboard-sync-pill">Synced</div>
             </div>
 
-            <div className="preview-filter-row">
+            <div className="dashboard-filter-row">
               <span>Source</span>
               <span>Job Title</span>
               <span>Company</span>
               <span>Status</span>
             </div>
 
-            <div className="preview-status-grid">
-              <div className="preview-status-card applied">
-                <div className="preview-status-head">Applied (5)</div>
-                <div className="preview-job-card">
+            <div className="dashboard-status-grid">
+              <div className="dashboard-status-card applied">
+                <div className="dashboard-status-head">Applied (5)</div>
+
+                <div className="dashboard-job-card">
                   <strong>Software Engineer Intern</strong>
                   <span>Amazon</span>
                 </div>
-                <div className="preview-job-card">
+
+                <div className="dashboard-job-card">
                   <strong>AI Intern</strong>
                   <span>ARCO/Murray</span>
                 </div>
               </div>
 
-              <div className="preview-status-card interview">
-                <div className="preview-status-head">Interview (2)</div>
-                <div className="preview-job-card">
+              <div className="dashboard-status-card interview">
+                <div className="dashboard-status-head">Interview (2)</div>
+
+                <div className="dashboard-job-card">
                   <strong>Analytics Developer</strong>
                   <span>Northwestern Mutual</span>
                 </div>
               </div>
 
-              <div className="preview-status-card offer">
-                <div className="preview-status-head">Offer (1)</div>
-                <div className="preview-job-card">
+              <div className="dashboard-status-card offer">
+                <div className="dashboard-status-head">Offer (1)</div>
+
+                <div className="dashboard-job-card">
                   <strong>Student Technician</strong>
                   <span>Elmhurst University</span>
                 </div>
               </div>
 
-              <div className="preview-status-card rejected">
-                <div className="preview-status-head">Not Selected (1)</div>
-                <div className="preview-job-card">
+              <div className="dashboard-status-card rejected">
+                <div className="dashboard-status-head">Not Selected (1)</div>
+
+                <div className="dashboard-job-card">
                   <strong>Data Analyst Intern</strong>
                   <span>Optum</span>
                 </div>
               </div>
             </div>
 
-            <div className="preview-bottom-panels">
-              <div className="preview-mini-panel">
+            <div className="dashboard-bottom-panels">
+              <div className="dashboard-mini-panel">
                 <p>Weekly Activity</p>
-                <div className="preview-bars">
+                <div className="dashboard-bars">
                   <span style={{ height: "35%" }} />
                   <span style={{ height: "55%" }} />
                   <span style={{ height: "45%" }} />
@@ -150,9 +156,9 @@ export default function LandingPage({ onGetStarted, onLoginClick }) {
                 </div>
               </div>
 
-              <div className="preview-mini-panel">
+              <div className="dashboard-mini-panel">
                 <p>AI Recommendation</p>
-                <div className="preview-reco-box">
+                <div className="dashboard-reco-box">
                   Add stronger keywords from the job description and quantify project impact.
                 </div>
               </div>
@@ -185,26 +191,109 @@ export default function LandingPage({ onGetStarted, onLoginClick }) {
         </div>
       </section>
 
+      <section className="landing-section-v2" id="debuglab">
+        <div className="landing-section-label">AI Debug Lab</div>
+
+        <div className="debuglab-section-grid">
+          <div className="debuglab-copy">
+            <h2>Practice real interview debugging with AI guidance</h2>
+            <p>
+              AI Debug Lab helps you prepare for coding interviews by fixing real broken
+              code with structured test cases, AI hints, and instant feedback. It is
+              designed to feel like a real technical interview environment inside
+              CareerPulse.
+            </p>
+
+            <div className="debuglab-feature-points">
+              <div className="debuglab-feature-item">
+                <span>✓</span>
+                <p>Broken interview-style coding problems</p>
+              </div>
+              <div className="debuglab-feature-item">
+                <span>✓</span>
+                <p>AI hints and step-by-step feedback</p>
+              </div>
+              <div className="debuglab-feature-item">
+                <span>✓</span>
+                <p>Run tests, reset code, and track progress</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="debuglab-showcase-card">
+            <div className="debuglab-showcase-top">
+              <div className="debuglab-showcase-pills">
+                <span className="debuglab-pill">Challenge</span>
+                <span className="debuglab-pill success">Easy</span>
+              </div>
+              <div className="debuglab-mini-status">3 test cases</div>
+            </div>
+
+            <h3>Fix the Two Sum Function</h3>
+
+            <pre className="debuglab-code-block">{`def two_sum(nums, target):
+    for i in range(len(nums)):
+        for j in range(len(nums)):
+            if nums[i] + nums[j] == target:
+                return [i, j]`}</pre>
+
+            <div className="debuglab-meta-row">
+              <span className="debuglab-meta-chip">💡 AI Hint available</span>
+              <span className="debuglab-meta-chip">✔ Instant feedback</span>
+            </div>
+
+            <div className="debuglab-feedback-card">
+              <p className="debuglab-feedback-title">AI Feedback</p>
+              <p>
+                Your solution has a logical issue — you're checking the same index
+                twice. Try ensuring <strong>i ≠ j</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="landing-section-v2" id="how">
         <div className="landing-section-label">How it Works</div>
-        <h2>Simple process, smarter job search</h2>
+        <h2>System architecture for a smarter job search</h2>
 
-        <div className="landing-steps-v2">
-          <div className="landing-step-v2">
-            <strong>01</strong>
-            <p>Build your profile and upload your resume</p>
-          </div>
-          <div className="landing-step-v2">
-            <strong>02</strong>
-            <p>Track every application in one dashboard</p>
-          </div>
-          <div className="landing-step-v2">
-            <strong>03</strong>
-            <p>Use AI to improve resume-job alignment</p>
-          </div>
-          <div className="landing-step-v2">
-            <strong>04</strong>
-            <p>Stay consistent with analytics and insights</p>
+        <div className="architecture-aws-shell">
+          <div className="architecture-flow-grid">
+            <div className="architecture-aws-node">
+              <div className="architecture-aws-icon">IN</div>
+              <h3>Input Layer</h3>
+              <p>Profile, resume, job descriptions, and application emails enter the system.</p>
+            </div>
+
+            <div className="architecture-connector">
+              <span className="connector-line"></span>
+            </div>
+
+            <div className="architecture-aws-node">
+              <div className="architecture-aws-icon">AI</div>
+              <h3>AI Processing</h3>
+              <p>ATS analysis, JD parsing, resume scoring, and AI Debug Lab work together.</p>
+            </div>
+
+            <div className="architecture-connector">
+              <span className="connector-line"></span>
+            </div>
+
+            <div className="architecture-aws-node">
+              <div className="architecture-aws-icon">DB</div>
+              <h3>Dashboard</h3>
+              <p>Applications, progress, recommendations, and insights are organized in one place.</p>
+            </div>
+
+            <div className="architecture-connector">
+              <span className="connector-line"></span>
+            </div>
+
+            <div className="architecture-aws-node">
+              <div className="architecture-aws-icon">OUT</div>
+              <h3>Outcome</h3>
+              <p>Users improve interview readiness, resume quality, and application consistency.</p>
+            </div>
           </div>
         </div>
       </section>

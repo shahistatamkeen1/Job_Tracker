@@ -13,25 +13,55 @@ async function request(path, options = {}) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || "Request failed");
   }
+
   return res.json();
 }
 
 export const api = {
   listJobs: () => request("/jobs"),
-  createJob: (payload) => request("/jobs", { method: "POST", body: JSON.stringify(payload) }),
+
+  createJob: (payload) =>
+    request("/jobs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   updateJob: (jobId, payload) =>
-    request(`/jobs/${jobId}`, { method: "PUT", body: JSON.stringify(payload) }),
+    request(`/jobs/${jobId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
   updateStatus: (jobId, payload) =>
-    request(`/jobs/${jobId}/status`, { method: "PATCH", body: JSON.stringify(payload) }),
-  deleteJob: (jobId) => request(`/jobs/${jobId}`, { method: "DELETE" }),
+    request(`/jobs/${jobId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteJob: (jobId) =>
+    request(`/jobs/${jobId}`, {
+      method: "DELETE",
+    }),
+
   generateJobInsight: (jobId) =>
-    request(`/jobs/${jobId}/generate-insight`, { method: "POST" }),
-  chatAboutJD: (payload) => request("/ai/chat", { method: "POST", body: JSON.stringify(payload) }),
+    request(`/jobs/${jobId}/generate-insight`, {
+      method: "POST",
+    }),
+
+  chatAboutJD: (payload) =>
+    request("/ai/chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   atsResume: (payload) =>
-    request("/ai/ats-resume", { method: "POST", body: JSON.stringify(payload) }),
-  
-  // Gmail integration
+    request("/ai/ats-resume", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   getGmailAuthUrl: () => request("/auth/gmail/login"),
+
   syncGmail: (accessToken) =>
     request("/jobs/sync/gmail", {
       method: "POST",
@@ -40,5 +70,24 @@ export const api = {
         token_type: "Bearer",
       }),
     }),
-};
 
+  listDebugChallenges: () => request("/debug-lab/challenges"),
+
+  getDebugChallenge: (challengeId) =>
+    request(`/debug-lab/challenges/${challengeId}`),
+
+  runDebugChallenge: (payload) =>
+    request("/debug-lab/run", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getDebugHint: (payload) =>
+    request("/debug-lab/hint", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  resetDebugChallenge: (challengeId) =>
+    request(`/debug-lab/reset/${challengeId}`),
+};

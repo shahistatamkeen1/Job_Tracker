@@ -8,6 +8,7 @@ import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import NavBar from "./components/NavBar";
 import LandingPage from "./components/LandingPage";
+import AIDebugLab from "./components/AIDebugLab";
 import { logActivity } from "./lib/activity";
 
 const tabs = [
@@ -15,12 +16,15 @@ const tabs = [
   { key: "tracker", label: "Applications" },
   { key: "chat", label: "AI JD Chat" },
   { key: "ats", label: "ATS Resume" },
+  { key: "debuglab", label: "AI Debug Lab" },
   { key: "activity", label: "Activity Analyze" },
 ];
 
 export default function App() {
   const [page, setPage] = useState("landing");
-  const [userEmail, setUserEmail] = useState(() => localStorage.getItem("jobTrackerUser") || "");
+  const [userEmail, setUserEmail] = useState(
+    () => localStorage.getItem("jobTrackerUser") || ""
+  );
   const [activeTab, setActiveTab] = useState("tracker");
 
   const headline = useMemo(() => {
@@ -33,23 +37,26 @@ export default function App() {
     if (activeTab === "chat") {
       return "Turn every job description into clear next steps with AI support.";
     }
-    if (activeTab === "activity") {
-      return "See your search momentum, effort, and consistency at a glance.";
+    if (activeTab === "ats") {
+      return "Measure resume strength, identify gaps, and improve ATS matching faster.";
     }
-    return "Measure resume strength, identify gaps, and improve ATS matching faster.";
+    if (activeTab === "debuglab") {
+      return "Practice debugging broken interview code with AI hints and test cases.";
+    }
+    return "See your search momentum, effort, and consistency at a glance.";
   }, [activeTab]);
-
-  useEffect(() => {
-    if (page === "app") {
-      logActivity("tab_opened", { tab: activeTab });
-    }
-  }, [activeTab, page]);
 
   useEffect(() => {
     if (userEmail) {
       setPage("app");
     }
   }, [userEmail]);
+
+  useEffect(() => {
+    if (page === "app") {
+      logActivity("tab_opened", { tab: activeTab });
+    }
+  }, [activeTab, page]);
 
   const handleLogin = (email) => {
     setUserEmail(email);
@@ -127,6 +134,7 @@ export default function App() {
         {activeTab === "tracker" && <JobTracker />}
         {activeTab === "chat" && <AIChat />}
         {activeTab === "ats" && <ATSResume userEmail={userEmail} />}
+        {activeTab === "debuglab" && <AIDebugLab />}
         {activeTab === "activity" && <ActivityAnalyze />}
       </main>
     </div>
