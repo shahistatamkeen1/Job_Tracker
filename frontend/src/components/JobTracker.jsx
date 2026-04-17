@@ -95,8 +95,14 @@ export default function JobTracker() {
     }
   }
 
-  function handleGmailSync() {
-    loadJobs();
+  function handleGmailSync(syncedJobs) {
+    // Add the newly synced jobs to the current jobs list
+    if (syncedJobs && syncedJobs.length > 0) {
+      setJobs((prev) => [...prev, ...syncedJobs]);
+    } else {
+      // If no jobs were passed, reload all jobs from the server
+      loadJobs();
+    }
   }
 
   return (

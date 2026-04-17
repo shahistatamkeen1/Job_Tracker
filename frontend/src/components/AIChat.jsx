@@ -10,23 +10,47 @@ export default function AIChat() {
 
   async function sendMessage(event) {
     event.preventDefault();
-    if (!jobDescription.trim() || !message.trim()) return;
+    
+    const trimmedJD = jobDescription.trim();
+    const trimmedMessage = message.trim();
+    
+    // Validation
+    if (!trimmedJD) {
+      alert("Please enter a job description");
+      return;
+    }
+    if (trimmedJD.length < 10) {
+      alert("Job description must be at least 10 characters");
+      return;
+    }
+    if (!trimmedMessage) {
+      alert("Please enter a message");
+      return;
+    }
 
-    const nextHistory = [...history, { role: "user", content: message }];
+    // Add user message to history
+    const userMessage = { role: "user", content: trimmedMessage };
+    const nextHistory = [...history, userMessage];
     setHistory(nextHistory);
-    logActivity("chat_message_sent", { length: message.length });
+    
+    logActivity("chat_message_sent", { length: trimmedMessage.length });
     setMessage("");
     setLoading(true);
 
     try {
+      // Send the message along with the conversation history (excluding current message)
       const res = await api.chatAboutJD({
-        job_description: jobDescription,
-        message,
-        history: nextHistory,
+        job_description: trimmedJD,
+        message: trimmedMessage,
+        history: history,
       });
+      // Add assistant's response to history
       setHistory((prev) => [...prev, { role: "assistant", content: res.reply }]);
     } catch (e) {
-      setHistory((prev) => [...prev, { role: "assistant", content: `Error: ${e.message}` }]);
+      console.error("Chat error:", e);
+      // Remove the pending user message and show error
+      setHistory((prev) => prev.slice(0, -1));
+      alert(`Error: ${e.message}`);
     } finally {
       setLoading(false);
     }
