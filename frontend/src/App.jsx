@@ -8,7 +8,8 @@ import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import NavBar from "./components/NavBar";
 import LandingPage from "./components/LandingPage";
-import GmailCallbackHandler from "./components/GmailCallbackHandler";
+import AIDebugLab from "./components/AIDebugLab";
+import { logActivity } from "./lib/activity";
 
 const tabs = [
   { key: "profile", label: "Profile" },
@@ -45,12 +46,8 @@ export default function App() {
     return "See your search momentum, effort, and consistency at a glance.";
   }, [activeTab]);
 
-  // Check if this is a Gmail callback
-  const isGmailCallback = window.location.search.includes('code=') && window.location.search.includes('state=');
-
-  if (isGmailCallback) {
-    return <GmailCallbackHandler />;
-  }
+  useEffect(() => {
+    if (userEmail) {
       setPage("app");
     }
   }, [userEmail]);
