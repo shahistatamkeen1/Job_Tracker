@@ -94,6 +94,8 @@ class GmailService:
         query_parts = [f"subject:{kw}" for kw in keywords]
         query = f"from:noreply@ OR from:careers@ OR from:jobs@ OR from:recruitment@ OR ({' OR '.join(query_parts)})"
 
+        print(f"Gmail query: {query}")
+
         try:
             results = (
                 self.service.users()
@@ -103,13 +105,17 @@ class GmailService:
             )
 
             messages = results.get("messages", [])
+            print(f"Found {len(messages)} messages matching query")
+
             job_data = []
 
             for message in messages:
                 msg_data = self.extract_job_info(message["id"])
                 if msg_data:
                     job_data.append(msg_data)
+                    print(f"Extracted job data: {msg_data['company']} - {msg_data['role']}")
 
+            print(f"Successfully extracted {len(job_data)} job applications")
             return job_data
 
         except Exception as e:
@@ -126,6 +132,8 @@ class GmailService:
             sender = next((h["value"] for h in headers if h["name"] == "From"), "")
             date_str = next((h["value"] for h in headers if h["name"] == "Date"), "")
 
+            print(f"Processing email: {subject} from {sender}")
+
             # Parse email date
             try:
                 from email.utils import parsedate_to_datetime
@@ -141,6 +149,8 @@ class GmailService:
             company = self._extract_company(subject, sender, body)
             role = self._extract_role(subject, body)
             status = self._extract_status(subject, body)
+
+            print(f"Extracted: Company={company}, Role={role}, Status={status}")
 
             return {
                 "company": company,

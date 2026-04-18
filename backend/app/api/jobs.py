@@ -135,14 +135,18 @@ async def delete_job(job_id: str):
 async def sync_gmail(request: GmailSyncRequest):
     """Sync job applications from Gmail and create entries in the database."""
     try:
+        print(f"Starting Gmail sync with token: {request.access_token[:20]}...")
         # Create credentials from access token
         credentials = Credentials(token=request.access_token)
         gmail_service.set_credentials(credentials)
 
         # Fetch job emails
+        print("Fetching job emails...")
         job_emails = gmail_service.get_job_emails(max_results=50)
+        print(f"Found {len(job_emails)} job emails")
 
         if not job_emails:
+            print("No job emails found")
             return {"synced": 0, "jobs": [], "message": "No job emails found"}
 
         collection = get_jobs_collection()
@@ -150,6 +154,7 @@ async def sync_gmail(request: GmailSyncRequest):
         now = datetime.utcnow()
 
         for email_data in job_emails:
+            print(f"Processing email: {email_data.get('email_subject', 'No subject')}")
             # Check if job already exists (by company and role combination)
             existing = await collection.find_one({
                 "company": email_data["company"],
@@ -158,6 +163,7 @@ async def sync_gmail(request: GmailSyncRequest):
             })
 
             if existing:
+                print(f"Job already exists: {email_data['company']} - {email_data['role']}")
                 continue  # Skip duplicate
 
             # Create job application entry
@@ -186,7 +192,9 @@ async def sync_gmail(request: GmailSyncRequest):
             result = await collection.insert_one(job_doc)
             created = await collection.find_one({"_id": result.inserted_id})
             created_jobs.append(serialize(created))
+            print(f"Created job: {email_data['company']} - {email_data['role']}")
 
+        print(f"Successfully synced {len(created_jobs)} jobs")
         return {
             "synced": len(created_jobs),
             "jobs": created_jobs,
@@ -194,6 +202,7 @@ async def sync_gmail(request: GmailSyncRequest):
         }
 
     except Exception as e:
+        print(f"Error syncing Gmail: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error syncing Gmail: {str(e)}")
 
 

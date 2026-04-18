@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.schemas.job import ATSResumeRequest, ChatRequest, RejectionAnalysisRequest
 from app.services.ai_service import ai_service
@@ -19,12 +19,15 @@ async def analyze_rejection(payload: RejectionAnalysisRequest):
 
 @router.post("/chat")
 async def chat(payload: ChatRequest):
-    reply = ai_service.chat_about_jd(
-        job_description=payload.job_description,
-        message=payload.message,
-        history=payload.history,
-    )
-    return {"reply": reply}
+    try:
+        reply = ai_service.chat_about_jd(
+            job_description=payload.job_description,
+            message=payload.message,
+            history=payload.history,
+        )
+        return {"reply": reply}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
 
 
 @router.post("/ats-resume")

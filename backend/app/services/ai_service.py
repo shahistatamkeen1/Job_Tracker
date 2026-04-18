@@ -144,8 +144,9 @@ class AIService:
             },
             {"role": "user", "content": f"Job Description:\n{job_description}"},
         ]
-        convo.extend(history[-8:])
-        convo.append({"role": "user", "content": message})
+        # Add previous messages from history
+        for msg in history[-8:]:
+            convo.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
 
         response = self.client.chat.completions.create(
             model=settings.openai_model,
