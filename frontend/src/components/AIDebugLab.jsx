@@ -1,257 +1,221 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import { logActivity } from "../lib/activity";
 
-export default function AIDebugLab() {
-  const [challenges, setChallenges] = useState([]);
-  const [selectedId, setSelectedId] = useState("");
+export default function AIDebugLab({ selectedJob }) {
   const [challenge, setChallenge] = useState(null);
   const [code, setCode] = useState("");
   const [result, setResult] = useState(null);
-  const [hint, setHint] = useState("");
   const [hintIndex, setHintIndex] = useState(0);
-  const [linkedJobId, setLinkedJobId] = useState("");
-  const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [hint, setHint] = useState("");
   const [loadingChallenge, setLoadingChallenge] = useState(false);
-  const [loadingRun, setLoadingRun] = useState(false);
-  const [loadingHint, setLoadingHint] = useState(false);
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    async function loadChallenges() {
-      try {
-        setLoadingChallenges(true);
-        setError("");
-        const data = await api.listDebugChallenges();
-        setChallenges(data);
-
-        if (data.length > 0) {
-          setSelectedId(data[0].id);
-        }
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoadingChallenges(false);
-      }
-    }
-
-    loadChallenges();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedId) return;
-
-    async function loadChallenge() {
-      try {
-        setLoadingChallenge(true);
-        setError("");
-        const data = await api.getDebugChallenge(selectedId);
-        setChallenge(data);
-        setCode(data.starter_code);
-        setResult(null);
-        setHint("");
-        setHintIndex(0);
-      } catch (e) {
-        setError(e.message);
-      } finally {
-        setLoadingChallenge(false);
-      }
-    }
-
-    loadChallenge();
-  }, [selectedId]);
 
   const passLabel = useMemo(() => {
     if (!result) return "Not run yet";
     return `${result.tests_passed}/${result.total_tests} tests passed`;
   }, [result]);
 
-  async function handleRunTests() {
-    if (!selectedId || !code.trim()) return;
-
-    try {
-      setLoadingRun(true);
-      setError("");
-      const data = await api.runDebugChallenge({
-        challenge_id: selectedId,
-        code,
-        linked_job_id: linkedJobId ? Number(linkedJobId) : null,
-      });
-      setResult(data);
-
-      logActivity("debug_lab_run", {
-        challenge_id: selectedId,
-        score: data.score,
-        tests_passed: data.tests_passed,
-      });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoadingRun(false);
+  async function generateChallenge() {
+    if (!selectedJob?.job_description) {
+      setError("Select a job first from Applications → Practice");
+      return;
     }
-  }
-
-  async function handleGetHint() {
-    if (!selectedId) return;
 
     try {
-      setLoadingHint(true);
+      setLoadingChallenge(true);
       setError("");
-      const data = await api.getDebugHint({
-        challenge_id: selectedId,
-        hint_index: hintIndex,
-        code,
-      });
-      setHint(data.hint);
-      setHintIndex((prev) => prev + 1);
-
-      logActivity("debug_lab_hint", {
-        challenge_id: selectedId,
-      });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoadingHint(false);
-    }
-  }
-
-  async function handleReset() {
-    if (!selectedId) return;
-
-    try {
-      setError("");
-      const data = await api.resetDebugChallenge(selectedId);
-      setCode(data.starter_code);
+      setChallenge(null);
+      setCode("");
       setResult(null);
       setHint("");
       setHintIndex(0);
-    } catch (e) {
-      setError(e.message);
+
+      const data = await api.generateDebugChallenge({
+        company: selectedJob.company || "",
+        role: selectedJob.role || "",
+        job_description: `${selectedJob.job_description}
+
+Generate a NEW challenge now. Timestamp: ${Date.now()}`,
+      });
+
+      setChallenge(data);
+      setCode(data.starter_code || "");
+    } catch (err) {
+      setError(err.message || "Failed to generate challenge");
+    } finally {
+      setLoadingChallenge(false);
     }
+  }
+
+  useEffect(() => {
+    if (selectedJob?.job_description) {
+      generateChallenge();
+    }
+  }, [selectedJob?.id]);
+
+  async function runTests() {
+    if (!challenge) return;
+
+    try {
+      setRunning(true);
+      setError("");
+
+      const data = await api.runDynamicDebugChallenge({
+        challenge,
+        code,
+      });
+
+      setResult(data);
+    } catch (err) {
+      setError(err.message || "Failed to run tests.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  function getHint() {
+    if (!challenge?.hints?.length) return;
+
+    const safeIndex = Math.min(hintIndex, challenge.hints.length - 1);
+    setHint(challenge.hints[safeIndex]);
+    setHintIndex((prev) => prev + 1);
+  }
+
+  function resetCode() {
+    if (!challenge) return;
+
+    setCode(challenge.starter_code || "");
+    setResult(null);
+    setHint("");
+    setHintIndex(0);
   }
 
   return (
     <section className="debug-lab-page">
-      <article className="card debug-lab-sidebar">
-        <span className="section-kicker">Interview practice</span>
+      <aside className="card debug-lab-sidebar">
+        <span className="section-kicker">Real-Time Interview Practice</span>
         <h2>AI Debug Lab</h2>
-        <p className="section-copy">
-          Practice debugging broken Python code with test cases, AI hints, and instant feedback.
+
+        <p>
+          AI creates a custom debugging challenge from the selected job
+          description.
         </p>
 
         <div className="debug-panel-stack">
-          <label className="field-label" htmlFor="challenge-select">
-            Challenge
-          </label>
-          <select
-            id="challenge-select"
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            disabled={loadingChallenges}
+          {selectedJob ? (
+            <div className="debug-summary-box">
+              <h3>Practice for this job</h3>
+              <p>
+                <strong>{selectedJob.role}</strong> at{" "}
+                <strong>{selectedJob.company}</strong>
+              </p>
+              <p>This challenge is generated from this job description in real time.</p>
+            </div>
+          ) : (
+            <div className="debug-summary-box">
+              <h3>No job selected</h3>
+              <p>Go to Applications and click Practice on any job.</p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={generateChallenge}
+            disabled={loadingChallenge || !selectedJob}
           >
-            {loadingChallenges ? (
-              <option>Loading challenges...</option>
-            ) : (
-              challenges.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))
-            )}
-          </select>
+            {loadingChallenge ? "Generating..." : "Generate New Challenge"}
+          </button>
+
+          {error && <div className="error-message">{error}</div>}
 
           {challenge && (
             <>
               <div className="pill-row">
-                <span className="pill">{challenge.language}</span>
-                <span className="pill">{challenge.difficulty}</span>
-                <span className="pill">{challenge.topic}</span>
+                <span className="pill">{challenge.language || "python"}</span>
+                <span className="pill">{challenge.difficulty || "easy"}</span>
+                <span className="pill">{challenge.topic || "debugging"}</span>
               </div>
 
               <div className="debug-summary-box">
                 <h3>{challenge.title}</h3>
                 <p>{challenge.description}</p>
+
                 <p>
                   <strong>Bug Type:</strong> {challenge.bug_type}
                 </p>
+
                 <p>
                   <strong>Expected:</strong> {challenge.expected_behavior}
                 </p>
+
                 <p>
-                  <strong>Hints Available:</strong> {challenge.hint_count}
+                  <strong>Why this matches:</strong>{" "}
+                  {challenge.why_this_matches_job}
+                </p>
+
+                <p>
+                  <strong>Hints Available:</strong> {challenge.hints?.length || 0}
                 </p>
               </div>
 
-              <label className="field-label" htmlFor="linked-job-id">
-                Optional linked job ID
-              </label>
-              <input
-                id="linked-job-id"
-                type="number"
-                placeholder="Example: 3"
-                value={linkedJobId}
-                onChange={(e) => setLinkedJobId(e.target.value)}
-              />
-
               <div className="debug-action-stack">
-                <button type="button" onClick={handleRunTests} disabled={loadingRun || loadingChallenge}>
-                  {loadingRun ? "Running..." : "Run Tests"}
+                <button onClick={runTests} disabled={running}>
+                  {running ? "Running..." : "Run Tests"}
                 </button>
 
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={handleGetHint}
-                  disabled={loadingHint || loadingChallenge}
-                >
-                  {loadingHint ? "Loading hint..." : "Get Hint"}
+                <button className="secondary-btn" onClick={getHint}>
+                  Get Hint
                 </button>
 
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={handleReset}
-                  disabled={loadingChallenge}
-                >
+                <button className="secondary-btn" onClick={resetCode}>
                   Reset Code
                 </button>
               </div>
+
+              {hint && (
+                <div className="debug-hint-box">
+                  <h3>Hint</h3>
+                  <p>{hint}</p>
+                </div>
+              )}
             </>
           )}
-
-          {hint && (
-            <div className="debug-hint-box">
-              <h3>AI Hint</h3>
-              <p>{hint}</p>
-            </div>
-          )}
-
-          {error && <p className="error">{error}</p>}
         </div>
-      </article>
+      </aside>
 
-      <article className="card debug-lab-main">
+      <main className="card debug-lab-main">
         <div className="debug-header-row">
           <div>
-            <span className="section-kicker">Editor workspace</span>
+            <span className="section-kicker">Editor Workspace</span>
             <h2>Code Editor</h2>
             <p className="debug-muted">{passLabel}</p>
           </div>
 
-          {result && (
-            <div className="debug-score-chip">
-              Score: <strong>{result.score}</strong>
-            </div>
-          )}
+          {result && <div className="debug-score-chip">Score: {result.score}%</div>}
         </div>
 
-        <textarea
-          className="debug-code-editor"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          spellCheck={false}
-          placeholder="Challenge code will appear here..."
-        />
+        {loadingChallenge ? (
+          <div className="debug-results-box">
+            <h3>Generating new challenge...</h3>
+            <p>AI is creating a fresh problem based on your job.</p>
+          </div>
+        ) : challenge ? (
+          <textarea
+            className="debug-code-editor"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            spellCheck="false"
+          />
+        ) : (
+          <div className="debug-results-box">
+            <h3>Waiting for a job</h3>
+            <p>
+              Click Practice from a job in your Applications table to create a
+              real-time AI challenge.
+            </p>
+          </div>
+        )}
 
         {result && (
           <div className="debug-results-box">
@@ -259,37 +223,29 @@ export default function AIDebugLab() {
             <p className="debug-feedback">{result.feedback}</p>
 
             <div className="debug-test-list">
-              {result.results.map((item, index) => (
+              {result.results.map((test, index) => (
                 <div
-                  key={`${index}-${item.passed ? "pass" : "fail"}`}
-                  className={`debug-test-row ${item.passed ? "passed" : "failed"}`}
+                  key={index}
+                  className={`debug-test-row ${test.passed ? "passed" : "failed"}`}
                 >
                   <div className="debug-test-top">
                     <strong>Test {index + 1}</strong>
-                    <span>{item.passed ? "Passed" : "Failed"}</span>
+                    <span>{test.passed ? "Passed" : "Failed"}</span>
                   </div>
 
-                  {item.input !== null && (
-                    <p>
-                      <strong>Input:</strong> {JSON.stringify(item.input)}
-                    </p>
-                  )}
+                  <p>
+                    <strong>Input:</strong> {JSON.stringify(test.input)}
+                  </p>
+                  <p>
+                    <strong>Expected:</strong> {JSON.stringify(test.expected)}
+                  </p>
+                  <p>
+                    <strong>Actual:</strong> {JSON.stringify(test.actual)}
+                  </p>
 
-                  {item.expected !== null && (
+                  {test.error && (
                     <p>
-                      <strong>Expected:</strong> {JSON.stringify(item.expected)}
-                    </p>
-                  )}
-
-                  {item.actual !== null && (
-                    <p>
-                      <strong>Actual:</strong> {JSON.stringify(item.actual)}
-                    </p>
-                  )}
-
-                  {item.error && (
-                    <p>
-                      <strong>Error:</strong> {item.error}
+                      <strong>Error:</strong> {test.error}
                     </p>
                   )}
                 </div>
@@ -297,7 +253,7 @@ export default function AIDebugLab() {
             </div>
           </div>
         )}
-      </article>
+      </main>
     </section>
   );
 }

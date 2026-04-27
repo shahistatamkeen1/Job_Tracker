@@ -5,11 +5,12 @@ import GmailSync from "./GmailSync";
 
 const statuses = ["applied", "interview", "rejected", "offer"];
 
-export default function JobTracker() {
+export default function JobTracker({ onPracticeDebug }) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [generatingInsight, setGeneratingInsight] = useState(null);
+
   const [form, setForm] = useState({
     company: "",
     role: "",
@@ -26,7 +27,7 @@ export default function JobTracker() {
       const data = await api.listJobs();
       setJobs(data);
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Failed to load applications.");
     } finally {
       setLoading(false);
     }
@@ -45,9 +46,16 @@ export default function JobTracker() {
 
   async function submitJob(event) {
     event.preventDefault();
+
     try {
+      setError("");
       await api.createJob(form);
-      logActivity("job_applied", { company: form.company, role: form.role });
+
+      logActivity("job_applied", {
+        company: form.company,
+        role: form.role,
+      });
+
       setForm({
         company: "",
         role: "",
@@ -56,47 +64,69 @@ export default function JobTracker() {
         applied_on: new Date().toISOString().slice(0, 10),
         notes: "",
       });
-      loadJobs();
+
+      await loadJobs();
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Failed to save application.");
     }
   }
 
   async function onStatusChange(jobId, status) {
-    const note = status === "rejected" ? "Status moved to rejected by user" : "Status updated";
+    const note =
+      status === "rejected"
+        ? "Status moved to rejected by user"
+        : "Status updated";
+
     try {
+      setError("");
       await api.updateStatus(jobId, { status, note });
       logActivity("status_update", { status });
-      loadJobs();
+      await loadJobs();
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Failed to update status.");
     }
   }
 
   async function onDelete(jobId) {
     try {
+      setError("");
       await api.deleteJob(jobId);
       logActivity("job_deleted");
-      loadJobs();
+      await loadJobs();
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Failed to delete application.");
     }
   }
 
   async function generateAIInsight(jobId) {
     try {
+      setError("");
       setGeneratingInsight(jobId);
+
       const response = await api.generateJobInsight(jobId);
-      setJobs((prev) => prev.map((job) => (job.id === jobId ? { ...job, ai_rejection_reason: response.insight } : job)));
+
+      setJobs((prev) =>
+        prev.map((job) =>
+          job.id === jobId
+            ? { ...job, ai_rejection_reason: response.insight }
+            : job
+        )
+      );
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Failed to generate AI insight.");
     } finally {
       setGeneratingInsight(null);
     }
   }
 
-  function handleGmailSync() {
-    loadJobs();
+  async function handleGmailSync() {
+    await loadJobs();
+  }
+
+  function practiceDebug(job) {
+    if (onPracticeDebug) {
+      onPracticeDebug(job);
+    }
   }
 
   return (
@@ -109,45 +139,61 @@ export default function JobTracker() {
               <h2>Add Application</h2>
             </div>
           </div>
+
           <form onSubmit={submitJob} className="form-grid">
             <input
               placeholder="Company"
               value={form.company}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, company: e.target.value })
+              }
               required
             />
+
             <input
               placeholder="Role"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
               required
             />
+
             <input
               type="date"
               value={form.applied_on}
-              onChange={(e) => setForm({ ...form, applied_on: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, applied_on: e.target.value })
+              }
               required
             />
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
               {statuses.map((status) => (
                 <option key={status} value={status}>
                   {status}
                 </option>
               ))}
             </select>
+
             <textarea
               rows={5}
               placeholder="Paste job description"
               value={form.job_description}
-              onChange={(e) => setForm({ ...form, job_description: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, job_description: e.target.value })
+              }
               required
             />
+
             <textarea
               rows={3}
               placeholder="Notes"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
+
             <button type="submit">Save Application</button>
           </form>
         </article>
@@ -159,6 +205,7 @@ export default function JobTracker() {
               <h2>Import from Gmail</h2>
             </div>
           </div>
+
           <GmailSync onSync={handleGmailSync} />
         </article>
       </div>
@@ -180,6 +227,7 @@ export default function JobTracker() {
         </div>
 
         {error && <p className="error">{error}</p>}
+
         {loading ? (
           <p>Loading applications...</p>
         ) : (
@@ -190,45 +238,78 @@ export default function JobTracker() {
                   <th>Company</th>
                   <th>Role</th>
                   <th>Status</th>
-                  <th>AI Rejection Insight</th>
+                  <th>AI Insight</th>
                   <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
-                {jobs.map((job) => (
-                  <tr key={job.id}>
-                    <td>{job.company}</td>
-                    <td>{job.role}</td>
-                    <td>
-                      <select value={job.status} onChange={(e) => onStatusChange(job.id, e.target.value)}>
-                        {statuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      {job.ai_rejection_reason ? (
-                        <span>{job.ai_rejection_reason}</span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="ai-btn"
-                          onClick={() => generateAIInsight(job.id)}
-                          disabled={generatingInsight === job.id}
-                        >
-                          {generatingInsight === job.id ? "Generating..." : "Generate Insight"}
-                        </button>
-                      )}
-                    </td>
-                    <td>
-                      <button type="button" className="danger" onClick={() => onDelete(job.id)}>
-                        Delete
-                      </button>
-                    </td>
+                {jobs.length === 0 ? (
+                  <tr>
+                    <td colSpan="5">No applications yet.</td>
                   </tr>
-                ))}
+                ) : (
+                  jobs.map((job) => (
+                    <tr key={job.id}>
+                      <td>{job.company}</td>
+                      <td>{job.role}</td>
+
+                      <td>
+                        <select
+                          value={job.status}
+                          onChange={(e) =>
+                            onStatusChange(job.id, e.target.value)
+                          }
+                        >
+                          {statuses.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td>
+                        {job.ai_rejection_reason ? (
+                          <div className="ai-insight-text">
+                            {job.ai_rejection_reason}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="ai-btn"
+                            onClick={() => generateAIInsight(job.id)}
+                            disabled={generatingInsight === job.id}
+                          >
+                            {generatingInsight === job.id
+                              ? "Generating..."
+                              : "Generate"}
+                          </button>
+                        )}
+                      </td>
+
+                      <td>
+                        <div className="job-action-stack">
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => practiceDebug(job)}
+                          >
+                            Practice
+                          </button>
+
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => onDelete(job.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

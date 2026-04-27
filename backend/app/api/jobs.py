@@ -142,7 +142,7 @@ async def sync_gmail(request: GmailSyncRequest):
 
         # Fetch job emails
         print("Fetching job emails...")
-        job_emails = gmail_service.get_job_emails(max_results=50)
+        job_emails = gmail_service.get_job_emails(max_results=10)
         print(f"Found {len(job_emails)} job emails")
 
         if not job_emails:
@@ -172,7 +172,7 @@ async def sync_gmail(request: GmailSyncRequest):
                 "role": email_data["role"],
                 "job_description": email_data["email_body_preview"],
                 "status": email_data["status"],
-                "applied_on": email_data["applied_on"],
+                "applied_on": datetime.combine(email_data["applied_on"], datetime.min.time()),
                 "notes": f"Imported from email: {email_data['email_subject']}",
                 "ai_rejection_reason": "",
                 "status_history": [

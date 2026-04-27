@@ -26,8 +26,10 @@ async def chat(payload: ChatRequest):
             history=payload.history,
         )
         return {"reply": reply}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="AI chat failed. Check backend OPENAI_API_KEY and model configuration.")
 
 
 @router.post("/ats-resume")

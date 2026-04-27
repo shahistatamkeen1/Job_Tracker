@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import random
 import re
+from datetime import datetime
 from typing import Any
 
 from openai import OpenAI
@@ -11,13 +13,18 @@ from app.config import settings
 
 class AIService:
     def __init__(self) -> None:
-        self.enabled = bool(settings.openai_api_key)
+        self.enabled = bool(settings.openai_api_key and settings.openai_api_key.strip())
         self.client = OpenAI(api_key=settings.openai_api_key) if self.enabled else None
+
+    def _ensure_ai_enabled(self) -> None:
+        if not self.enabled or self.client is None:
+            raise ValueError("OPENAI_API_KEY is missing. Add a valid key in backend .env file.")
 
     def _simple_overlap_score(self, jd: str, resume: str) -> int:
         tokens = {t.lower() for t in re.findall(r"[A-Za-z][A-Za-z0-9+#.]{1,}", jd)}
         if not tokens:
             return 50
+
         hits = sum(1 for t in tokens if t in resume.lower())
         ratio = hits / len(tokens)
         return max(35, min(98, int(ratio * 100)))
@@ -56,37 +63,8 @@ class AIService:
             "CERTIFICATIONS\n"
             "- Certification Name - Issuer\n\n"
             "ACHIEVEMENTS\n"
-            "- Add measurable achievements (awards, impact, rankings, outcomes)."
+            "- Add measurable achievements."
         )
-
-    def analyze_rejection(self, job_description: str, user_notes: str, status_history: list[dict]) -> str:
-        if not self.enabled:
-            return (
-                "Most likely rejection reasons: insufficient keyword alignment with the job description, "
-                "limited measurable achievements in your application, and weak role-specific tailoring. "
-                "Improve by matching required skills, quantifying impact, and customizing each application."
-            )
-
-        prompt = (
-            "You are a career coach. Analyze why this job application may have been rejected. "
-            "Provide a concise paragraph (2-3 sentences) with practical suggestions. Be specific about what could improve the application."
-        )
-        details = (
-            f"Job Description:\n{job_description}\n\n"
-            f"User Notes:\n{user_notes}\n\n"
-            f"Status History:\n{json.dumps(status_history, indent=2)}"
-        )
-        
-        response = self.client.chat.completions.create(
-            model=settings.openai_model,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": details},
-            ],
-            max_tokens=300,
-            temperature=0.7,
-        )
-        return response.choices[0].message.content
 
     def generate_application_insight(
         self,
@@ -95,58 +73,178 @@ class AIService:
         job_description: str,
         status: str,
         notes: str,
-        description: str = ""
+        description: str = "",
     ) -> str:
-        """Generate AI insight for any application (not just rejected ones)"""
         if not self.enabled:
-            return f"Analysis pending for {role} at {company}. Review the job description and your application details to identify improvement areas."
+            return f"Review the role requirements for {role} at {company} and match your resume to the key skills."
+
+        self._ensure_ai_enabled()
 
         prompt = (
-            "You are an expert career coach and recruiter. Analyze this job application and provide strategic insights. "
-            "Consider the role, company, job description, application status, and notes. "
-            "Provide 2-3 concrete, actionable recommendations to strengthen the application. "
-            "Be specific and reference details from the job description."
+            "You are a friendly career coach. "
+            "Give very simple advice for this job application. "
+            "Do not write paragraphs. Do not use headings. Do not use markdown bold. "
+            "Return only 4 short bullet points. "
+            "Each bullet must be one simple action step under 18 words. "
+            "Focus only on what the user should do next."
         )
+
         details = (
             f"Company: {company}\n"
             f"Role: {role}\n"
             f"Status: {status}\n"
             f"Job Description:\n{job_description}\n\n"
-            f"Application Description:\n{description}\n\n"
-            f"Notes:\n{notes}"
+            f"Notes:\n{notes}\n"
+            f"Application Description:\n{description}"
         )
-        
+
         response = self.client.chat.completions.create(
             model=settings.openai_model,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": details},
             ],
-            max_tokens=400,
-            temperature=0.7,
+            max_tokens=180,
+            temperature=0.5,
         )
-        return response.choices[0].message.content
+
+        return (
+            (response.choices[0].message.content or "")
+            .replace("**", "")
+            .replace("###", "")
+            .strip()
+        )
+
+    def generate_debug_challenge(
+        self,
+        job_description: str,
+        role: str = "",
+        company: str = "",
+    ) -> dict:
+        self._ensure_ai_enabled()
+
+        unique_seed = f"{datetime.now().isoformat()}-{random.randint(1000, 9999)}"
+
+        prompt = """
+You are a coding interview coach.
+
+Create ONE personalized Python debugging challenge based on the job description.
+
+Return ONLY valid JSON. No markdown. No explanation outside JSON.
+
+JSON format:
+{
+  "title": "short title",
+  "description": "simple description",
+  "difficulty": "easy",
+  "topic": "job-related topic",
+  "language": "python",
+  "bug_type": "short bug type",
+  "function_name": "valid_python_function_name",
+  "expected_behavior": "what the function should do",
+  "starter_code": "buggy python code as a string",
+  "tests": [
+    {"input": [value1, value2], "expected": expected_value}
+  ],
+  "hints": ["hint 1", "hint 2", "hint 3"],
+  "why_this_matches_job": "simple reason why this challenge fits the job"
+}
+
+Rules:
+- Keep it beginner friendly.
+- Use only simple Python.
+- starter_code must contain exactly one bug.
+- Tests must match function_name.
+- No imports.
+- No print().
+- No input().
+- No files.
+- No network.
+- No database.
+- No external libraries.
+- Generate a different challenge every time.
+- Vary function name, bug type, logic, and test cases each time.
+"""
+
+        details = f"""
+Unique Request ID: {unique_seed}
+
+Company: {company}
+Role: {role}
+
+Job Description:
+{job_description}
+
+IMPORTANT:
+Generate a NEW and DIFFERENT challenge every time.
+Do not repeat the same logic, same function, or same tests.
+"""
+
+        response = self.client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": details},
+            ],
+            max_tokens=900,
+            temperature=0.8,
+        )
+
+        text = (response.choices[0].message.content or "").strip()
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            cleaned = text.replace("```json", "").replace("```", "").strip()
+            data = json.loads(cleaned)
+
+        required_keys = [
+            "title",
+            "description",
+            "difficulty",
+            "topic",
+            "language",
+            "bug_type",
+            "function_name",
+            "expected_behavior",
+            "starter_code",
+            "tests",
+            "hints",
+            "why_this_matches_job",
+        ]
+
+        for key in required_keys:
+            if key not in data:
+                raise ValueError(f"AI challenge missing required field: {key}")
+
+        return data
 
     def chat_about_jd(self, job_description: str, message: str, history: list[dict]) -> str:
         if not self.enabled:
-            return (
-                "I can help with JD analysis. Focus first on the top 5 required skills, "
-                "then map each skill to a specific achievement from your projects or work."
-            )
+            return "Focus on matching the top job requirements with your strongest projects and experience."
+
+        self._ensure_ai_enabled()
 
         convo: list[dict[str, Any]] = [
             {
                 "role": "system",
                 "content": (
-                    "You are an expert job application mentor. Answer questions about job descriptions, "
-                    "skills, interview prep, and application strategy with concise actionable guidance."
+                    "You are an expert job application mentor. "
+                    "Give concise, practical advice."
                 ),
             },
             {"role": "user", "content": f"Job Description:\n{job_description}"},
         ]
-        # Add previous messages from history
+
         for msg in history[-8:]:
-            convo.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+            convo.append(
+                {
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", ""),
+                }
+            )
+
+        convo.append({"role": "user", "content": message})
 
         response = self.client.chat.completions.create(
             model=settings.openai_model,
@@ -154,52 +252,61 @@ class AIService:
             max_tokens=500,
             temperature=0.7,
         )
-        return response.choices[0].message.content
+
+        return response.choices[0].message.content or ""
 
     def ats_resume_feedback(self, job_description: str, resume_text: str) -> dict:
         if not self.enabled:
             original_score = self._simple_overlap_score(job_description, resume_text)
             improved_resume = self._ats_formatted_resume(resume_text)
             improved_score = self._simple_overlap_score(job_description, improved_resume)
+
             return {
                 "score": original_score,
                 "original_score": original_score,
                 "improved_score": improved_score,
                 "score_increase": improved_score - original_score,
                 "gaps": [
-                    "Add more role-specific keywords from the JD.",
-                    "Quantify achievements with metrics.",
-                    "Highlight tools and frameworks requested by the employer.",
+                    "Add more job-specific keywords.",
+                    "Quantify achievements with numbers.",
+                    "Highlight tools mentioned in the job description.",
                 ],
                 "improved_resume": improved_resume,
             }
 
+        self._ensure_ai_enabled()
+
         prompt = (
             "Evaluate resume ATS compatibility for the job description. "
-            "Return strict JSON with keys: score (0-100 int), gaps (array of strings), improved_resume (string). "
-            "The improved_resume must be ATS-friendly plain text (no markdown tables) with these exact section headers: "
-            "PROFESSIONAL SUMMARY, CORE SKILLS, PROFESSIONAL EXPERIENCE, PROJECTS, EDUCATION, CERTIFICATIONS, ACHIEVEMENTS. "
-            "Use concise bullets and quantified impact where possible."
+            "Return strict JSON with keys: score, gaps, improved_resume."
         )
+
         response = self.client.chat.completions.create(
             model=settings.openai_model,
             messages=[
                 {"role": "system", "content": prompt},
                 {
                     "role": "user",
-                    "content": json.dumps({"job_description": job_description, "resume_text": resume_text}),
+                    "content": json.dumps(
+                        {
+                            "job_description": job_description,
+                            "resume_text": resume_text,
+                        }
+                    ),
                 },
             ],
             max_tokens=1500,
             temperature=0.5,
         )
 
-        text = response.choices[0].message.content.strip()
+        text = (response.choices[0].message.content or "").strip()
+
         try:
             data = json.loads(text)
             original_score = int(data.get("score", 0))
             improved_resume = data.get("improved_resume", self._ats_formatted_resume(resume_text))
             improved_score = self._simple_overlap_score(job_description, improved_resume)
+
             return {
                 "score": original_score,
                 "original_score": original_score,
@@ -208,10 +315,12 @@ class AIService:
                 "gaps": data.get("gaps", []),
                 "improved_resume": improved_resume,
             }
+
         except json.JSONDecodeError:
             original_score = self._simple_overlap_score(job_description, resume_text)
             improved_resume = self._ats_formatted_resume(resume_text)
             improved_score = self._simple_overlap_score(job_description, improved_resume)
+
             return {
                 "score": original_score,
                 "original_score": original_score,

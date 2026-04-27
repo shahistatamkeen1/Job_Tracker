@@ -17,7 +17,7 @@ const tabs = [
   { key: "chat", label: "AI JD Chat" },
   { key: "ats", label: "ATS Resume" },
   { key: "debuglab", label: "AI Debug Lab" },
-  { key: "activity", label: "Activity Analyze" },
+  { key: "activity", label: "Activity" },
 ];
 
 export default function App() {
@@ -26,25 +26,33 @@ export default function App() {
     () => localStorage.getItem("jobTrackerUser") || ""
   );
   const [activeTab, setActiveTab] = useState("tracker");
+  const [selectedDebugJob, setSelectedDebugJob] = useState(null);
 
   const headline = useMemo(() => {
     if (activeTab === "profile") {
       return "Keep your candidate profile polished, complete, and ready to share.";
     }
+
     if (activeTab === "tracker") {
       return "Track every application with a clean pipeline and instant insights.";
     }
+
     if (activeTab === "chat") {
       return "Turn every job description into clear next steps with AI support.";
     }
+
     if (activeTab === "ats") {
       return "Measure resume strength, identify gaps, and improve ATS matching faster.";
     }
+
     if (activeTab === "debuglab") {
-      return "Practice debugging broken interview code with AI hints and test cases.";
+      return selectedDebugJob
+        ? `Practice coding for ${selectedDebugJob.role} at ${selectedDebugJob.company}.`
+        : "Practice debugging broken interview code with AI hints and test cases.";
     }
+
     return "See your search momentum, effort, and consistency at a glance.";
-  }, [activeTab]);
+  }, [activeTab, selectedDebugJob]);
 
   useEffect(() => {
     if (userEmail) {
@@ -72,8 +80,14 @@ export default function App() {
 
   const handleLogout = () => {
     setUserEmail("");
+    setSelectedDebugJob(null);
     localStorage.removeItem("jobTrackerUser");
     setPage("landing");
+  };
+
+  const openDebugLabForJob = (job) => {
+    setSelectedDebugJob(job);
+    setActiveTab("debuglab");
   };
 
   if (page === "landing") {
@@ -123,18 +137,30 @@ export default function App() {
       <section className="app-intro-card">
         <div>
           <span className="app-eyebrow">CareerPulse Workspace</span>
-          <h1 className="app-title">Modern job tracking with a premium SaaS feel.</h1>
+          <h1 className="app-title">
+            Modern job tracking with a premium SaaS feel.
+          </h1>
           <p className="app-intro">{headline}</p>
         </div>
+
         <div className="app-status-chip">Live workflow</div>
       </section>
 
       <main className="content-panel">
         {activeTab === "profile" && <UserProfile userEmail={userEmail} />}
-        {activeTab === "tracker" && <JobTracker />}
+
+        {activeTab === "tracker" && (
+          <JobTracker onPracticeDebug={openDebugLabForJob} />
+        )}
+
         {activeTab === "chat" && <AIChat />}
+
         {activeTab === "ats" && <ATSResume userEmail={userEmail} />}
-        {activeTab === "debuglab" && <AIDebugLab />}
+
+        {activeTab === "debuglab" && (
+          <AIDebugLab selectedJob={selectedDebugJob} />
+        )}
+
         {activeTab === "activity" && <ActivityAnalyze />}
       </main>
     </div>

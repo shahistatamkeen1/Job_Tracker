@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from google.auth.transport import requests
 from google.oauth2 import id_token
+
 from app.config import settings
 from app.services.gmail_service import gmail_service
 
@@ -18,39 +20,33 @@ class GmailAuthResponse(BaseModel):
 
 @router.post("/auth/google")
 async def google_login(request: GoogleTokenRequest):
-    """Verify Google ID token and return user email"""
     try:
-        # Get Google Client ID from settings
         google_client_id = settings.google_client_id
-        
+
         if not google_client_id:
             raise HTTPException(status_code=500, detail="Google Client ID not configured")
-        
-        # Verify the token
+
         idinfo = id_token.verify_oauth2_token(
             request.token,
             requests.Request(),
-            google_client_id
+            google_client_id,
         )
-        
-        # Token is valid, extract user info
+
         email = idinfo.get("email")
         name = idinfo.get("name")
         picture = idinfo.get("picture")
-        
+
         if not email:
             raise HTTPException(status_code=400, detail="Email not found in token")
-        
-        # TODO: Save or update user in MongoDB
-        # For now, just return the email
+
         return {
             "email": email,
             "name": name,
             "picture": picture,
-            "message": "Login successful"
+            "message": "Login successful",
         }
-        
-    except ValueError as e:
+
+    except ValueError:
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -58,7 +54,6 @@ async def google_login(request: GoogleTokenRequest):
 
 @router.get("/auth/gmail/login")
 async def gmail_login():
-    """Get Gmail OAuth2 authorization URL"""
     try:
         auth_url, state = gmail_service.get_auth_url()
         return {"auth_url": auth_url, "state": state}
@@ -68,17 +63,48 @@ async def gmail_login():
 
 @router.get("/auth/gmail/callback")
 async def gmail_callback(code: str):
-    """Handle Gmail OAuth2 callback"""
     try:
         credentials = gmail_service.get_credentials_from_code(code)
-        
-        # Convert credentials to a format we can send to frontend
-        return {
-            "access_token": credentials.token,
-            "token_type": "Bearer",
-            "message": "Gmail authorization successful"
-        }
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+          <body>
+            <script>
+              window.opener.postMessage(
+                {{
+                  type: "gmail-auth-success",
+                  access_token: "{credentials.token}",
+                  token_type: "Bearer"
+                }},
+                "http://localhost:5173"
+              );
+              window.close();
+            </script>
+            <p>Gmail connected successfully. You can close this window.</p>
+          </body>
+        </html>
+        """
+
+        return HTMLResponse(content=html)
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error handling Gmail callback: {str(e)}")
-
-
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+          <body>
+            <script>
+              window.opener.postMessage(
+                {{
+                  type: "gmail-auth-error",
+                  error: "{str(e)}"
+                }},
+                "http://localhost:5173"
+              );
+              window.close();
+            </script>
+            <p>Gmail authorization failed.</p>
+          </body>
+        </html>
+        """
+        return HTMLResponse(content=html, status_code=500)

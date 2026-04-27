@@ -71,23 +71,15 @@ export const api = {
       }),
     }),
 
-  listDebugChallenges: () => request("/debug-lab/challenges"),
-
-  getDebugChallenge: (challengeId) =>
-    request(`/debug-lab/challenges/${challengeId}`),
-
-  runDebugChallenge: (payload) =>
-    request("/debug-lab/run", {
+  generateDebugChallenge: (payload) =>
+    request("/debug-lab/generate", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
-  getDebugHint: (payload) =>
-    request("/debug-lab/hint", {
+  runDynamicDebugChallenge: (payload) =>
+    request("/debug-lab/run-dynamic", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-
-  resetDebugChallenge: (challengeId) =>
-    request(`/debug-lab/reset/${challengeId}`),
 };
