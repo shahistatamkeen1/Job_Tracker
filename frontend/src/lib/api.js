@@ -1,7 +1,10 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`;
+  console.log("API REQUEST:", url);
+
+  const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -10,76 +13,42 @@ async function request(path, options = {}) {
   });
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || "Request failed");
+    const errorText = await res.text();
+    throw new Error(errorText || "Request failed");
   }
 
   return res.json();
 }
 
 export const api = {
-  listJobs: () => request("/jobs"),
-
-  createJob: (payload) =>
-    request("/jobs", {
+  chatAboutJD(payload) {
+    return request("/api/ai/chat", {
       method: "POST",
       body: JSON.stringify(payload),
-    }),
+    });
+  },
 
-  updateJob: (jobId, payload) =>
-    request(`/jobs/${jobId}`, {
+  listJobs() {
+    return request("/api/jobs");
+  },
+
+  createJob(payload) {
+    return request("/jobs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateJob(jobId, payload) {
+    return request(`/jobs/${jobId}`, {
       method: "PUT",
       body: JSON.stringify(payload),
-    }),
+    });
+  },
 
-  updateStatus: (jobId, payload) =>
-    request(`/jobs/${jobId}/status`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    }),
-
-  deleteJob: (jobId) =>
-    request(`/jobs/${jobId}`, {
+  deleteJob(jobId) {
+    return request(`/jobs/${jobId}`, {
       method: "DELETE",
-    }),
-
-  generateJobInsight: (jobId) =>
-    request(`/jobs/${jobId}/generate-insight`, {
-      method: "POST",
-    }),
-
-  chatAboutJD: (payload) =>
-    request("/ai/chat", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  atsResume: (payload) =>
-    request("/ai/ats-resume", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  getGmailAuthUrl: () => request("/auth/gmail/login"),
-
-  syncGmail: (accessToken) =>
-    request("/jobs/sync/gmail", {
-      method: "POST",
-      body: JSON.stringify({
-        access_token: accessToken,
-        token_type: "Bearer",
-      }),
-    }),
-
-  generateDebugChallenge: (payload) =>
-    request("/debug-lab/generate", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-
-  runDynamicDebugChallenge: (payload) =>
-    request("/debug-lab/run-dynamic", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+    });
+  },
 };

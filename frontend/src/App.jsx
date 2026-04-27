@@ -134,18 +134,6 @@ export default function App() {
         onOpenProfile={() => setActiveTab("profile")}
       />
 
-      <section className="app-intro-card">
-        <div>
-          <span className="app-eyebrow">CareerPulse Workspace</span>
-          <h1 className="app-title">
-            Modern job tracking with a premium SaaS feel.
-          </h1>
-          <p className="app-intro">{headline}</p>
-        </div>
-
-        <div className="app-status-chip">Live workflow</div>
-      </section>
-
       <main className="content-panel">
         {activeTab === "profile" && <UserProfile userEmail={userEmail} />}
 

@@ -1,3 +1,21 @@
+const TAB_LABELS = {
+  profile: "Career Profile",
+  tracker: "Application Hub",
+  chat: "Career Copilot",
+  ats: "Resume Optimizer",
+  debuglab: "Skill Arena",
+  activity: "Progress Insight",
+};
+
+const TAB_ICONS = {
+  profile: "👤",
+  tracker: "💼",
+  chat: "✨",
+  ats: "📄",
+  debuglab: "🧠",
+  activity: "📊",
+};
+
 export default function NavBar({
   tabs,
   activeTab,
@@ -23,25 +41,6 @@ export default function NavBar({
       ?.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       ?.join(" ") || "User";
 
-  const getTabIcon = (key) => {
-    switch (key) {
-      case "profile":
-        return "👤";
-      case "tracker":
-        return "💼";
-      case "chat":
-        return "✨";
-      case "ats":
-        return "📄";
-      case "debuglab":
-        return "🐞";
-      case "activity":
-        return "📈";
-      default:
-        return "•";
-    }
-  };
-
   return (
     <header className="top-nav top-nav-modern" aria-label="Main Navigation">
       <div className="top-nav-brand">
@@ -54,9 +53,9 @@ export default function NavBar({
           CP
         </button>
 
-<div className="brand-copy">
-  <p className="brand-label">CareerPulse</p>
-</div>
+        <div className="brand-copy">
+          <p className="brand-label">CareerPulse</p>
+        </div>
       </div>
 
       <nav className="top-nav-tabs modern-tabs" aria-label="Feature Tabs">
@@ -64,11 +63,13 @@ export default function NavBar({
           <button
             key={tab.key}
             type="button"
-            className={`top-nav-tab modern-tab ${activeTab === tab.key ? "active" : ""}`}
+            className={`top-nav-tab modern-tab ${
+              activeTab === tab.key ? "active" : ""
+            }`}
             onClick={() => onTabChange(tab.key)}
           >
-            <span className="tab-icon">{getTabIcon(tab.key)}</span>
-            <span>{tab.label}</span>
+            <span className="tab-icon">{TAB_ICONS[tab.key] || "•"}</span>
+            <span>{TAB_LABELS[tab.key] || tab.label}</span>
           </button>
         ))}
       </nav>

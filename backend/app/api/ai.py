@@ -1,40 +1,60 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
-from app.schemas.job import ATSResumeRequest, ChatRequest, RejectionAnalysisRequest
 from app.services.ai_service import ai_service
 
 
-router = APIRouter(prefix="/ai", tags=["ai"])
+router = APIRouter(tags=["AI"])
 
 
-@router.post("/analyze-rejection")
-async def analyze_rejection(payload: RejectionAnalysisRequest):
-    analysis = ai_service.analyze_rejection(
-        job_description=payload.job_description,
-        user_notes=payload.user_notes,
-        status_history=payload.status_history,
+class ChatRequest(BaseModel):
+    job_description: str = Field(default="")
+    message: str = Field(default="")
+    history: list[dict] = Field(default_factory=list)
+
+
+class ATSRequest(BaseModel):
+    job_description: str = Field(default="")
+    resume_text: str = Field(default="")
+
+
+class DebugRequest(BaseModel):
+    job_description: str = Field(default="")
+    role: str = Field(default="")
+    company: str = Field(default="")
+
+
+def build_chat_reply(payload: ChatRequest):
+    reply = ai_service.chat_about_jd(
+        payload.job_description,
+        payload.message,
+        payload.history or [],
     )
-    return {"analysis": analysis}
+    return {"reply": reply}
 
 
-@router.post("/chat")
-async def chat(payload: ChatRequest):
-    try:
-        reply = ai_service.chat_about_jd(
-            job_description=payload.job_description,
-            message=payload.message,
-            history=payload.history,
-        )
-        return {"reply": reply}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="AI chat failed. Check backend OPENAI_API_KEY and model configuration.")
+@router.post("/api/ai/chat")
+def chat_api(payload: ChatRequest):
+    return build_chat_reply(payload)
 
 
-@router.post("/ats-resume")
-async def ats_resume(payload: ATSResumeRequest):
+@router.post("/ai/chat")
+def chat_legacy(payload: ChatRequest):
+    return build_chat_reply(payload)
+
+
+@router.post("/api/ai/ats-resume")
+def ats_resume(payload: ATSRequest):
     return ai_service.ats_resume_feedback(
-        job_description=payload.job_description,
-        resume_text=payload.resume_text,
+        payload.job_description,
+        payload.resume_text,
+    )
+
+
+@router.post("/api/ai/debug-challenge")
+def debug_challenge(payload: DebugRequest):
+    return ai_service.generate_debug_challenge(
+        payload.job_description,
+        payload.role,
+        payload.company,
     )

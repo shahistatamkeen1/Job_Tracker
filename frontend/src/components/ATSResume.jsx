@@ -13,6 +13,7 @@ async function extractPdfText(file) {
   const pdf = await loadingTask.promise;
 
   const pages = [];
+
   for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
     const page = await pdf.getPage(pageNo);
     const content = await page.getTextContent();
@@ -21,10 +22,26 @@ async function extractPdfText(file) {
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
+
     if (text) pages.push(text);
   }
 
   return pages.join("\n");
+}
+
+function getKeywords(text = "") {
+  const stopWords = new Set([
+    "the", "and", "with", "for", "you", "your", "are", "will", "this", "that",
+    "from", "have", "our", "can", "job", "role", "team", "work", "using",
+  ]);
+
+  return [...new Set(
+    text
+      .toLowerCase()
+      .match(/[a-zA-Z][a-zA-Z0-9+#.]{2,}/g) || []
+  )]
+    .filter((word) => !stopWords.has(word))
+    .slice(0, 18);
 }
 
 export default function ATSResume({ userEmail }) {
@@ -63,6 +80,7 @@ export default function ATSResume({ userEmail }) {
         icon: "🙂",
       };
     }
+
     const original = result.original_score ?? result.score ?? 0;
     const improved = result.improved_score ?? result.score ?? 0;
     const increase = result.score_increase ?? improved - original;
@@ -70,13 +88,14 @@ export default function ATSResume({ userEmail }) {
 
     let level = "Starter";
     let icon = "🙂";
-    if (improved >= 85) {
-      level = "ATS Pro";
+
+    if (improved >= 90) {
+      level = "ATS Champion";
       icon = "🏆";
-    } else if (improved >= 70) {
+    } else if (improved >= 80) {
       level = "Strong Match";
       icon = "🚀";
-    } else if (improved >= 55) {
+    } else if (improved >= 65) {
       level = "Good Momentum";
       icon = "💪";
     }
@@ -84,19 +103,34 @@ export default function ATSResume({ userEmail }) {
     return { original, improved, increase, pct, level, icon };
   }, [result]);
 
+  const keywordView = useMemo(() => {
+    const jdKeywords = getKeywords(jobDescription);
+    const improvedResume = result?.improved_resume || "";
+    const resumeLower = improvedResume.toLowerCase();
+
+    return jdKeywords.map((keyword) => ({
+      keyword,
+      matched: resumeLower.includes(keyword.toLowerCase()),
+    }));
+  }, [jobDescription, result]);
+
   function useProfileResume() {
     const profile = getProfile(userEmail);
     const generated = buildResumeText(profile);
+
     if (!generated.trim()) {
       setHelperText("Profile is empty. Add profile details first.");
       return;
     }
+
     setResumeText(generated);
     setResumeFile(null);
+
     if (resumePreviewUrl) {
       URL.revokeObjectURL(resumePreviewUrl);
       setResumePreviewUrl("");
     }
+
     setResumePreviewText(generated);
     setResumeSource("profile");
     setHelperText("Loaded resume draft from your profile.");
@@ -112,6 +146,7 @@ export default function ATSResume({ userEmail }) {
     setHelperText("");
 
     if (resumePreviewUrl) URL.revokeObjectURL(resumePreviewUrl);
+
     const nextPreviewUrl = URL.createObjectURL(file);
     setResumePreviewUrl(nextPreviewUrl);
 
@@ -129,11 +164,12 @@ export default function ATSResume({ userEmail }) {
     if (file.type === "application/pdf") {
       try {
         const extracted = await extractPdfText(file);
+
         if (!extracted.trim()) {
           setResumeText("");
           setResumePreviewText("");
           setHelperText(
-            "PDF preview ready, but no selectable text was found (likely scanned PDF). Use Profile Data or upload a text-based resume."
+            "PDF preview ready, but no selectable text was found. Use Profile Data or upload a text-based resume."
           );
           return;
         }
@@ -144,24 +180,27 @@ export default function ATSResume({ userEmail }) {
       } catch {
         setResumeText("");
         setResumePreviewText("");
-        setHelperText(
-          "PDF preview is available, but text extraction failed for this file. Use Profile Data or a text-based resume."
-        );
+        setHelperText("PDF preview is available, but text extraction failed.");
       }
+
       return;
     }
 
     setResumeText("");
     setResumePreviewText("");
-    setHelperText("Preview is available for this file type, but ATS text extraction is not supported yet.");
+    setHelperText("Preview is available, but ATS text extraction is not supported for this file.");
   }
 
   async function analyze(event) {
     event.preventDefault();
+
     if (!resumeText.trim()) {
       setResult({
         score: 0,
-        gaps: ["No resume text available for ATS. Upload a text resume or use Profile Data first."],
+        original_score: 0,
+        improved_score: 0,
+        score_increase: 0,
+        gaps: ["No resume text available. Upload a resume or use Profile Data first."],
         improved_resume: "",
       });
       return;
@@ -169,35 +208,72 @@ export default function ATSResume({ userEmail }) {
 
     setLoading(true);
     setResult(null);
+
     try {
       const data = await api.atsResume({
         job_description: jobDescription,
         resume_text: resumeText,
       });
+
       setResult(data);
       logActivity("resume_analyze", { score: data.score || 0 });
     } catch (e) {
-      setResult({ score: 0, gaps: [e.message], improved_resume: "" });
+      setResult({
+        score: 0,
+        original_score: 0,
+        improved_score: 0,
+        score_increase: 0,
+        gaps: [e.message],
+        improved_resume: "",
+      });
     } finally {
       setLoading(false);
     }
   }
 
+  function copyImprovedResume() {
+    if (!result?.improved_resume) return;
+    navigator.clipboard.writeText(result.improved_resume);
+    setHelperText("Improved resume copied to clipboard.");
+  }
+
+  function downloadImprovedResume() {
+    if (!result?.improved_resume) return;
+
+    const blob = new Blob([result.improved_resume], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "ai-improved-resume.txt";
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
+
   return (
-    <section className="ats-layout">
+    <section className="ats-premium-page">
       <div className="ats-top-grid">
-        <article className="card">
-          <h2>ATS Resume Builder</h2>
+        <article className="card ats-builder-card">
+          <span className="section-kicker">ATS Resume Studio</span>
+          <h2>Improve Your Resume Match</h2>
+          <p className="ats-muted">
+            Upload your resume, paste a job description, and let AI improve your ATS score.
+          </p>
+
           <form className="form-grid" onSubmit={analyze}>
             <button type="button" className="secondary-btn" onClick={useProfileResume}>
               Use Profile Data
             </button>
+
             <input
               type="file"
               accept=".txt,.md,.rtf,.pdf,.doc,.docx,image/*"
               onChange={onResumeFileChange}
             />
-            {helperText && <p>{helperText}</p>}
+
+            {helperText && <p className="ats-helper">{helperText}</p>}
+
             <textarea
               rows={11}
               placeholder="Paste Job Description"
@@ -205,15 +281,23 @@ export default function ATSResume({ userEmail }) {
               onChange={(e) => setJobDescription(e.target.value)}
               required
             />
+
             <button type="submit" disabled={loading}>
               {loading ? "Analyzing..." : "Analyze and Improve"}
             </button>
           </form>
         </article>
 
-        <article className="card resume-preview">
-          <h2>Resume Preview</h2>
-          {previewMode === "none" && <p>Upload a resume file to preview it here.</p>}
+        <article className="card resume-preview ats-preview-card">
+          <span className="section-kicker">Resume Preview</span>
+          <h2>Uploaded Resume</h2>
+
+          {previewMode === "none" && (
+            <div className="ats-empty-preview">
+              <h3>No resume uploaded yet</h3>
+              <p>Upload a resume or use your profile data.</p>
+            </div>
+          )}
 
           {previewMode === "pdf" && resumePreviewUrl && (
             <iframe
@@ -224,7 +308,11 @@ export default function ATSResume({ userEmail }) {
           )}
 
           {previewMode === "image" && resumePreviewUrl && (
-            <img src={resumePreviewUrl} alt="Uploaded resume preview" className="resume-preview-image" />
+            <img
+              src={resumePreviewUrl}
+              alt="Uploaded resume preview"
+              className="resume-preview-image"
+            />
           )}
 
           {previewMode === "text" && (
@@ -237,58 +325,125 @@ export default function ATSResume({ userEmail }) {
         </article>
       </div>
 
-      <article className="card">
-        <h2>Result</h2>
-        <div className="ats-game-panel">
-          <div className="ats-game-headline">
-            <h3>ATS Challenge Board</h3>
-            <span className="ats-level-badge">
-              {scoreView.icon} {scoreView.level}
-            </span>
+      <article className="card ats-premium-result-card">
+        <div className="ats-result-header">
+          <div>
+            <span className="section-kicker">ATS Result</span>
+            <h2>Resume Match Dashboard</h2>
+            <p className="ats-muted">
+              Track your original score, AI-improved score, and key improvements.
+            </p>
           </div>
 
-          <div className="ats-score-grid">
-            <div className="ats-score-card">
-              <p>Uploaded Resume Score</p>
-              <strong>{scoreView.original}/100</strong>
-            </div>
-            <div className="ats-score-card">
-              <p>Rewritten Resume Score</p>
-              <strong>{scoreView.improved}/100</strong>
-            </div>
-            <div className="ats-score-card">
-              <p>Score Increase</p>
-              <strong className={scoreView.increase >= 0 ? "score-up" : "score-down"}>
-                {scoreView.increase >= 0 ? "+" : ""}
-                {scoreView.increase}
-              </strong>
-            </div>
+          <span className="ats-level-badge premium">
+            {scoreView.icon} {scoreView.level}
+          </span>
+        </div>
+
+        <div className="ats-score-hero">
+          <div className="ats-big-score before">
+            <span>Before</span>
+            <strong>{scoreView.original}%</strong>
+            <p>Uploaded Resume</p>
           </div>
 
-          <div className="ats-progress-wrap">
-            <div className="ats-progress-topline">
-              <span>Rewritten Strength</span>
-              <span>{scoreView.pct}%</span>
-            </div>
-            <div className="ats-progress-track">
-              <div className="ats-progress-fill" style={{ width: `${scoreView.pct}%` }} />
-            </div>
+          <div className="ats-score-arrow">
+            <span>→</span>
+            <small>AI Rewrite</small>
+          </div>
+
+          <div className="ats-big-score after">
+            <span>After</span>
+            <strong>{scoreView.improved}%</strong>
+            <p>Improved Resume</p>
+          </div>
+
+          <div className="ats-big-score gain">
+            <span>Increase</span>
+            <strong>
+              {scoreView.increase >= 0 ? "+" : ""}
+              {scoreView.increase}
+            </strong>
+            <p>Score Boost</p>
           </div>
         </div>
 
-        {!result && <p>Run Analyze and Improve to see ATS insights and rewritten resume.</p>}
+        <div className="ats-progress-wrap premium">
+          <div className="ats-progress-topline">
+            <span>ATS Strength</span>
+            <span>{scoreView.pct}%</span>
+          </div>
+
+          <div className="ats-progress-track premium-track">
+            <div
+              className="ats-progress-fill premium-fill"
+              style={{ width: `${scoreView.pct}%` }}
+            />
+          </div>
+        </div>
+
+        {!result && (
+          <div className="ats-empty-result">
+            <h3>Run Analyze and Improve</h3>
+            <p>Your ATS score, keyword match, and improved resume will appear here.</p>
+          </div>
+        )}
+
         {result && (
           <>
-            <h3>Improvement Areas</h3>
-            <ul>
-              {(result.gaps || []).map((gap, i) => (
-                <li key={i}>{gap}</li>
-              ))}
-            </ul>
-            <h3>AI Improved Resume Draft</h3>
-            <div className="resume-output-paper">
-              <pre>{result.improved_resume || ""}</pre>
+            <div className="ats-insight-grid">
+              <section className="ats-premium-panel">
+                <h3>Improvement Areas</h3>
+                <div className="ats-gap-grid">
+                  {(result.gaps || []).map((gap, index) => (
+                    <div className="ats-gap-card" key={index}>
+                      <span>{index + 1}</span>
+                      <p>{gap}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="ats-premium-panel">
+                <h3>Keyword Match</h3>
+                <div className="ats-keyword-cloud">
+                  {keywordView.length === 0 ? (
+                    <p>No keywords detected yet.</p>
+                  ) : (
+                    keywordView.map((item) => (
+                      <span
+                        key={item.keyword}
+                        className={item.matched ? "matched" : "missing"}
+                      >
+                        {item.matched ? "✓" : "○"} {item.keyword}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </section>
             </div>
+
+            <section className="ats-premium-panel resume-document-panel">
+              <div className="ats-document-header">
+                <div>
+                  <h3>AI Improved Resume Draft</h3>
+                  <p>ATS-friendly version rewritten for the job description.</p>
+                </div>
+
+                <div className="ats-document-actions">
+                  <button type="button" className="secondary-btn" onClick={copyImprovedResume}>
+                    Copy
+                  </button>
+                  <button type="button" onClick={downloadImprovedResume}>
+                    Download
+                  </button>
+                </div>
+              </div>
+
+              <div className="resume-output-paper premium-paper">
+                <pre>{result.improved_resume || ""}</pre>
+              </div>
+            </section>
           </>
         )}
       </article>
