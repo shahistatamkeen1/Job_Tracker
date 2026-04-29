@@ -27,6 +27,33 @@ app.add_middleware(
 async def health():
     return {"status": "ok"}
 
+from urllib.parse import urlencode
+from app.config import settings
+
+@app.get("/api/gmail/auth-url")
+async def gmail_auth_url():
+    params = {
+        "client_id": settings.google_client_id,
+        "redirect_uri": "http://127.0.0.1:8000/api/gmail/callback",
+        "response_type": "code",
+        "scope": "https://www.googleapis.com/auth/gmail.readonly",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+
+    return {
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth?" + urlencode(params)
+    }
+@app.get("/api/gmail/callback")
+async def gmail_callback(code: str):
+    return {"message": "Authorization successful", "code": code}
+
+@app.post("/api/gmail/sync")
+async def gmail_sync():
+    return {
+        "message": "Gmail sync endpoint connected successfully",
+        "applications": []
+    }
 
 app.include_router(jobs_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")

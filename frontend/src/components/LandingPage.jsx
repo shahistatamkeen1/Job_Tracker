@@ -1,132 +1,113 @@
-const orbitItems = [
-  ["Application Hub", "Track every role"],
-  ["Career Copilot", "Understand each JD"],
-  ["Resume Optimizer", "Improve ATS fit"],
-  ["Skill Arena", "Practice interviews"],
-  ["Progress Insight", "Monitor growth"],
-  ["Career Profile", "Build your story"],
+const nodes = [
+  ["jd", "Job Description", "Paste role details", "📌"],
+  ["copilot", "Career Copilot", "Extract role insights", "✨"],
+  ["resume", "Resume Optimizer", "Improve ATS match", "📄"],
+  ["hub", "Application Hub", "Track pipeline", "💼"],
+  ["insight", "Progress Insight", "Monitor activity", "📊"],
+  ["arena", "Skill Arena", "Practice interviews", "🧠"],
 ];
 
 export default function LandingPage({ onGetStarted, onLoginClick }) {
   return (
-    <div className="landing-v2">
-      <div className="landing-topbar" />
-
-      <header className="landing-navbar">
-        <div className="landing-brand">
-          <div className="landing-brand-logo">CF</div>
-          <span>CareerForge</span>
+    <main className="cf-landing">
+      <nav className="cf-nav">
+        <div className="cf-brand">
+          <div className="cf-logo">CF</div>
+          <strong>CareerForge</strong>
         </div>
 
-        <nav className="landing-nav-links">
-          <a href="#overview">Overview</a>
+        <div className="cf-links">
           <a href="#features">Features</a>
-          <a href="#how">How it Works</a>
-          <a href="#benefits">Why CareerForge</a>
-        </nav>
-
-        <div className="landing-nav-actions">
-          <button type="button" className="landing-login-btn" onClick={onLoginClick}>
-            Login
-          </button>
-          <button type="button" className="landing-primary-btn" onClick={onGetStarted}>
-            Get Started
-          </button>
-        </div>
-      </header>
-
-      <section className="landing-orbit-hero">
-        <div className="landing-orbit-copy">
-          <span className="landing-small-badge">AI Career Command Center</span>
-
-          <h1>
-            Forge every step of your
-            <span> job search with AI.</span>
-          </h1>
-
-          <p>
-            CareerForge turns job descriptions, resumes, applications, interview practice,
-            and progress tracking into one guided workflow built for serious job seekers.
-          </p>
-
-          <div className="landing-cta-row">
-            <button type="button" className="landing-primary-btn large" onClick={onGetStarted}>
-              Start Forging
-            </button>
-
-            <a href="#features" className="landing-text-link">
-              Explore workflow <span>→</span>
-            </a>
-          </div>
-
-          <div className="orbit-proof-row">
-            <div>
-              <strong>6</strong>
-              <span>connected tools</span>
-            </div>
-            <div>
-              <strong>AI</strong>
-              <span>guided preparation</span>
-            </div>
-            <div>
-              <strong>Live</strong>
-              <span>progress insight</span>
-            </div>
-          </div>
+          <a href="#workflow">Workflow</a>
+          <a href="#why">Why CareerForge</a>
         </div>
 
-        <div className="career-orbit-wrap">
-          <div className="orbit-glow" />
-          <div className="orbit-ring orbit-ring-one" />
-          <div className="orbit-ring orbit-ring-two" />
+        <div className="cf-actions">
+          <button className="cf-login" onClick={onLoginClick}>Login</button>
+          <button className="cf-primary" onClick={onGetStarted}>Get Started</button>
+        </div>
+      </nav>
 
-          <div className="orbit-center">
-            <span>CF</span>
-            <strong>CareerForge AI</strong>
-            <small>Your career operating system</small>
+      <section className="cf-hero">
+        <div className="cf-hero-inner">
+          <div className="cf-copy">
+            <span className="cf-badge">AI Career Workflow Builder</span>
+
+            <h1>
+              Turn your job search into an
+              <span> intelligent workflow.</span>
+            </h1>
+
+            <p>
+              CareerForge connects applications, resumes, job descriptions,
+              interview practice, and progress tracking into one AI-powered
+              career operating system.
+            </p>
+
+            <div className="cf-cta">
+              <button className="cf-primary cf-large" onClick={onGetStarted}>
+                Start Building
+              </button>
+              <a href="#workflow">See workflow →</a>
+            </div>
+
+            <div className="cf-stats">
+              <div><strong>6</strong><span>career modules</span></div>
+              <div><strong>AI</strong><span>guided decisions</span></div>
+              <div><strong>Live</strong><span>progress insights</span></div>
+            </div>
           </div>
 
-          {orbitItems.map(([title, text], index) => (
-            <div key={title} className={`orbit-card orbit-card-${index + 1}`}>
-              <strong>{title}</strong>
-              <span>{text}</span>
+          <div className="cf-canvas" id="workflow">
+            <div className="cf-grid" />
+
+            <svg className="cf-lines" viewBox="0 0 600 500">
+              <path d="M300 90 L300 210" />
+              <path d="M300 230 L500 155" />
+              <path d="M300 250 L500 345" />
+              <path d="M300 290 L300 410" />
+              <path d="M300 250 L100 345" />
+              <path d="M300 230 L100 155" />
+            </svg>
+
+            <div className="cf-core">
+              <div className="cf-pulse" />
+              <div className="cf-core-card">
+                <span>CF</span>
+                <strong>CareerForge AI</strong>
+                <small>Routes your career workflow</small>
+              </div>
             </div>
-          ))}
+
+            {nodes.map(([id, title, text, icon], index) => (
+              <div key={id} className={`cf-node cf-node-${index + 1}`}>
+                <div className="cf-node-icon">{icon}</div>
+                <div>
+                  <strong>{title}</strong>
+                  <span>{text}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="landing-section-v2" id="overview">
-        <div className="landing-section-label">Overview</div>
-        <h2>A smarter career workspace</h2>
+      <section className="cf-section" id="features">
+        <span className="cf-badge">Features</span>
+        <h2>Everything your job search needs, connected.</h2>
+      </section>
+
+      <section className="cf-section cf-dark" id="why">
+        <span className="cf-badge">Why CareerForge</span>
+        <h2>Built for serious job seekers who want clarity.</h2>
         <p>
-          CareerForge helps users replace scattered job-search work with one intelligent
-          system for applications, resumes, interviews, and progress.
+          Replace scattered spreadsheets, notes, resumes, and prep tabs with one
+          visual AI workflow.
         </p>
-      </section>
-
-      <section className="landing-section-v2" id="features">
-        <div className="landing-section-label">Features</div>
-        <h2>Everything connected in one workflow</h2>
-
-        <div className="landing-feature-list-v2">
-          {orbitItems.map(([title, text]) => (
-            <div key={title} className="landing-feature-line">
-              <span className="feature-check">✓</span>
-              <span>
-                <strong>{title}</strong> — {text}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing-footer-cta">
-        <h2>Start building your future with more clarity.</h2>
-        <p>Track applications, improve resumes, and prepare for interviews with confidence.</p>
-        <button type="button" className="landing-primary-btn large" onClick={onGetStarted}>
+        <button className="cf-primary cf-large" onClick={onGetStarted}>
           Enter CareerForge
         </button>
       </section>
-    </div>
+    </main>
   );
 }

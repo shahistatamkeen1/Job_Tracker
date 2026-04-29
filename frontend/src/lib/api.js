@@ -32,6 +32,16 @@ export const api = {
     return request("/api/jobs");
   },
 
+  getGmailAuthUrl() {
+  return request("/api/gmail/auth-url");
+},
+
+syncGmailApplications() {
+  return request("/api/gmail/sync", {
+    method: "POST",
+  });
+},
+
   createJob(payload) {
     return request("/jobs", {
       method: "POST",
