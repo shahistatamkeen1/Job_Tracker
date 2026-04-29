@@ -1,5 +1,7 @@
+import { useState } from "react";
+
 const TAB_LABELS = {
-  profile: "Career Profile",
+  profile: "Profile",
   tracker: "Application Hub",
   chat: "Career Copilot",
   ats: "Resume Optimizer",
@@ -24,6 +26,7 @@ export default function NavBar({
   onLogout,
   onOpenProfile,
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const initials =
     userEmail
       ?.split("@")[0]
@@ -50,15 +53,25 @@ export default function NavBar({
           aria-label="Open profile"
           onClick={onOpenProfile}
         >
-          CP
+          CF
         </button>
 
         <div className="brand-copy">
-          <p className="brand-label">CareerPulse</p>
+          <p className="brand-label">CareerForge</p>
         </div>
       </div>
 
-      <nav className="top-nav-tabs modern-tabs" aria-label="Feature Tabs">
+      <button
+  className="mobile-nav-toggle"
+  onClick={() => setMobileMenuOpen((prev) => !prev)}
+>
+  {mobileMenuOpen ? "Close" : "Menu"}
+</button>
+
+      <nav
+  className={`top-nav-tabs modern-tabs ${mobileMenuOpen ? "mobile-open" : ""}`}
+  aria-label="Feature Tabs"
+>
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -66,7 +79,10 @@ export default function NavBar({
             className={`top-nav-tab modern-tab ${
               activeTab === tab.key ? "active" : ""
             }`}
-            onClick={() => onTabChange(tab.key)}
+            onClick={() => {
+  onTabChange(tab.key);
+  setMobileMenuOpen(false);
+}}
           >
             <span className="tab-icon">{TAB_ICONS[tab.key] || "•"}</span>
             <span>{TAB_LABELS[tab.key] || tab.label}</span>
@@ -83,11 +99,6 @@ export default function NavBar({
         >
           {initials.slice(0, 1)}
         </button>
-
-        <div className="top-nav-user-copy">
-          <span className="user-name">{userName}</span>
-          <span className="user-email">{userEmail}</span>
-        </div>
 
         <button
           type="button"

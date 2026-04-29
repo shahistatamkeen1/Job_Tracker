@@ -4,11 +4,22 @@ import { api } from "../lib/api";
 export default function GmailSync({ onSync }) {
   const popupRef = useRef(null);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+
+  async function runGmailSync() {
+    const response = await api.syncGmailApplications();
+    const imported = response.applications || [];
+
+    setMessage(response.message || "Gmail sync completed.");
+
+    if (onSync) {
+      onSync(imported);
+    }
+  }
 
   useEffect(() => {
-    function handleMessage(event) {
+    async function handleMessage(event) {
       if (
         event.origin !== "http://127.0.0.1:8000" &&
         event.origin !== "http://localhost:8000"
@@ -17,31 +28,31 @@ export default function GmailSync({ onSync }) {
       }
 
       if (event.data?.type === "gmail-auth-success") {
-        setSuccess("Gmail connected successfully.");
-        setError("");
-        setLoading(false);
-
-        if (onSync) {
-          onSync([]);
+        try {
+          setMessage("Gmail connected. Importing applications...");
+          await runGmailSync();
+        } catch (err) {
+          setError(err.message || "Gmail import failed.");
+        } finally {
+          setLoading(false);
         }
       }
 
       if (event.data?.type === "gmail-auth-error") {
         setError(event.data.error || "Gmail authorization failed.");
-        setSuccess("");
         setLoading(false);
       }
     }
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [onSync]);
+  }, []);
 
-  async function handleGmailLogin() {
+  async function handleConnectGmail() {
     try {
       setLoading(true);
       setError("");
-      setSuccess("");
+      setMessage("");
 
       const { auth_url } = await api.getGmailAuthUrl();
 
@@ -60,7 +71,7 @@ export default function GmailSync({ onSync }) {
           clearInterval(timer);
           setLoading(false);
         }
-      }, 700);
+      }, 800);
     } catch (err) {
       setError(err.message || "Gmail connection failed.");
       setLoading(false);
@@ -70,18 +81,18 @@ export default function GmailSync({ onSync }) {
   return (
     <div className="gmail-sync-container">
       <h3>Import from Gmail</h3>
-      <p>Automatically extract job applications from your Gmail inbox</p>
+      <p>Automatically extract real job applications from your Gmail inbox</p>
 
       <button
-        onClick={handleGmailLogin}
+        onClick={handleConnectGmail}
         disabled={loading}
         className="sync-button"
       >
-        {loading ? "Connecting..." : "Connect Gmail"}
+        {loading ? "Importing..." : "Connect Gmail"}
       </button>
 
+      {message && <div className="success-message">{message}</div>}
       {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{success}</div>}
     </div>
   );
 }

@@ -11,7 +11,6 @@ from app.schemas.job import JobApplicationCreate, JobApplicationUpdate, StatusUp
 from app.services.ai_service import ai_service
 from app.services.gmail_service import gmail_service
 
-
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
@@ -55,16 +54,16 @@ async def create_job(payload: JobApplicationCreate):
     doc = {
         **payload.model_dump(),
         "ai_rejection_reason": "",
+        "follow_up_email": "",
         "status_history": [{"status": payload.status, "note": "Initial status", "at": now.isoformat()}],
         "created_at": now,
         "updated_at": now,
     }
-    # Convert date object to datetime for MongoDB storage
-    if isinstance(doc.get("applied_on"), datetime) is False:
-        applied_on = doc.get("applied_on")
-        if applied_on is not None:
-            doc["applied_on"] = datetime.combine(applied_on, datetime.min.time())
-    
+
+    applied_on = doc.get("applied_on")
+    if applied_on is not None and not isinstance(applied_on, datetime):
+        doc["applied_on"] = datetime.combine(applied_on, datetime.min.time())
+
     result = await collection.insert_one(doc)
     created = await collection.find_one({"_id": result.inserted_id})
     return serialize(created)
@@ -97,21 +96,12 @@ async def update_status(job_id: str, payload: StatusUpdateRequest):
     history = job.get("status_history", [])
     history.append({"status": payload.status, "note": payload.note, "at": now.isoformat()})
 
-    ai_reason = job.get("ai_rejection_reason", "")
-    if payload.status == "rejected":
-        ai_reason = ai_service.analyze_rejection(
-            job_description=job["job_description"],
-            user_notes=f"{job.get('notes', '')}\n{payload.note}",
-            status_history=history,
-        )
-
     await collection.update_one(
         {"_id": object_id},
         {
             "$set": {
                 "status": payload.status,
                 "status_history": history,
-                "ai_rejection_reason": ai_reason,
                 "updated_at": now,
             }
         },
@@ -132,124 +122,126 @@ async def delete_job(job_id: str):
 
 
 @router.post("/sync/gmail")
-async def sync_gmail(request: GmailSyncRequest):
-    """Sync job applications from Gmail and create entries in the database."""
+async def sync_gmail_legacy(request: GmailSyncRequest):
     try:
-        print(f"Starting Gmail sync with token: {request.access_token[:20]}...")
-        # Create credentials from access token
         credentials = Credentials(token=request.access_token)
         gmail_service.set_credentials(credentials)
-
-        # Fetch job emails
-        print("Fetching job emails...")
         job_emails = gmail_service.get_job_emails(max_results=10)
-        print(f"Found {len(job_emails)} job emails")
+        return await _save_gmail_jobs(job_emails)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error syncing Gmail: {str(e)}")
 
-        if not job_emails:
-            print("No job emails found")
-            return {"synced": 0, "jobs": [], "message": "No job emails found"}
 
-        collection = get_jobs_collection()
-        created_jobs = []
-        now = datetime.utcnow()
+async def _save_gmail_jobs(job_emails: list[dict]):
+    if not job_emails:
+        return {"synced": 0, "jobs": [], "applications": [], "message": "No high-confidence job application emails found."}
 
-        for email_data in job_emails:
-            print(f"Processing email: {email_data.get('email_subject', 'No subject')}")
-            # Check if job already exists (by company and role combination)
-            existing = await collection.find_one({
+    collection = get_jobs_collection()
+    created_jobs = []
+    now = datetime.utcnow()
+
+    for email_data in job_emails:
+        existing = await collection.find_one(
+            {
                 "company": email_data["company"],
                 "role": email_data["role"],
-                "source": "gmail"
-            })
-
-            if existing:
-                print(f"Job already exists: {email_data['company']} - {email_data['role']}")
-                continue  # Skip duplicate
-
-            # Create job application entry
-            job_doc = {
-                "company": email_data["company"],
-                "role": email_data["role"],
-                "job_description": email_data["email_body_preview"],
-                "status": email_data["status"],
-                "applied_on": datetime.combine(email_data["applied_on"], datetime.min.time()),
-                "notes": f"Imported from email: {email_data['email_subject']}",
-                "ai_rejection_reason": "",
-                "status_history": [
-                    {
-                        "status": email_data["status"],
-                        "note": "Imported from Gmail",
-                        "at": now.isoformat()
-                    }
-                ],
                 "source": "gmail",
-                "email_subject": email_data["email_subject"],
-                "email_from": email_data["email_from"],
-                "created_at": now,
-                "updated_at": now,
             }
+        )
+        if existing:
+            continue
 
-            result = await collection.insert_one(job_doc)
-            created = await collection.find_one({"_id": result.inserted_id})
-            created_jobs.append(serialize(created))
-            print(f"Created job: {email_data['company']} - {email_data['role']}")
-
-        print(f"Successfully synced {len(created_jobs)} jobs")
-        return {
-            "synced": len(created_jobs),
-            "jobs": created_jobs,
-            "message": f"Successfully synced {len(created_jobs)} job applications from Gmail"
+        job_doc = {
+            "company": email_data["company"],
+            "role": email_data["role"],
+            "job_description": email_data.get("email_body_preview", ""),
+            "status": email_data["status"],
+            "applied_on": datetime.combine(email_data["applied_on"], datetime.min.time()),
+            "notes": f"Imported from Gmail: {email_data.get('email_subject', '')}",
+            "ai_rejection_reason": "",
+            "follow_up_email": "",
+            "status_history": [
+                {"status": email_data["status"], "note": "Imported from Gmail AI parser", "at": now.isoformat()}
+            ],
+            "source": "gmail",
+            "email_subject": email_data.get("email_subject", ""),
+            "email_from": email_data.get("email_from", ""),
+            "confidence": email_data.get("confidence", 0),
+            "created_at": now,
+            "updated_at": now,
         }
 
-    except Exception as e:
-        print(f"Error syncing Gmail: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error syncing Gmail: {str(e)}")
+        result = await collection.insert_one(job_doc)
+        created = await collection.find_one({"_id": result.inserted_id})
+        created_jobs.append(serialize(created))
+
+    return {
+        "synced": len(created_jobs),
+        "jobs": created_jobs,
+        "applications": created_jobs,
+        "message": f"Imported {len(created_jobs)} high-confidence applications from Gmail.",
+    }
 
 
 @router.post("/{job_id}/generate-insight")
 async def generate_ai_insight(job_id: str):
-    """Generate AI insight for a specific job application"""
     try:
         collection = get_jobs_collection()
         object_id = parse_object_id(job_id)
         job = await collection.find_one({"_id": object_id})
-        
+
         if not job:
             raise HTTPException(status_code=404, detail="Job application not found")
-        
+
         insight = ai_service.generate_application_insight(
             company=job.get("company", ""),
             role=job.get("role", ""),
             job_description=job.get("job_description", ""),
             status=job.get("status", ""),
             notes=job.get("notes", ""),
-            description=job.get("description", "")
+            description=job.get("description", ""),
         )
-        
-        # Update the job with the AI insight
-        await collection.update_one(
-            {"_id": object_id},
-            {
-                "$set": {
-                    "ai_rejection_reason": insight,
-                    "updated_at": datetime.utcnow(),
-                }
-            }
-        )
-        
+
         return {
             "insight": insight,
-            "message": "AI insight generated successfully"
+            "message": "AI insight generated successfully",
         }
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating AI insight: {str(e)}")
+    
+@router.post("/{job_id}/follow-up")
+async def generate_follow_up(job_id: str):
+    try:
+        collection = get_jobs_collection()
+        object_id = parse_object_id(job_id)
+        job = await collection.find_one({"_id": object_id})
+        if not job:
+            raise HTTPException(status_code=404, detail="Job application not found")
+
+        email = ai_service.generate_followup_email(
+            company=job.get("company", ""),
+            role=job.get("role", ""),
+            status=job.get("status", ""),
+            notes=job.get("notes", ""),
+            job_description=job.get("job_description", ""),
+        )
+
+        await collection.update_one(
+            {"_id": object_id},
+            {"$set": {"follow_up_email": email, "updated_at": datetime.utcnow()}},
+        )
+        return {"email": email, "message": "Follow-up email generated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating follow-up email: {str(e)}")
 
 
 @router.post("/ai-insight")
 async def generate_insight_direct(request: AIInsightRequest):
-    """Generate AI insight without saving to database"""
     try:
         insight = ai_service.generate_application_insight(
             company=request.company,
@@ -257,17 +249,8 @@ async def generate_insight_direct(request: AIInsightRequest):
             job_description=request.job_description,
             status=request.status,
             notes=request.notes,
-            description=request.description
+            description=request.description,
         )
         return {"insight": insight}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating AI insight: {str(e)}")
-
-@router.delete("/{job_id}")
-async def delete_job(job_id: str):
-    collection = get_jobs_collection()
-    object_id = parse_object_id(job_id)
-    result = await collection.delete_one({"_id": object_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Job application not found")
-    return {"deleted": True}

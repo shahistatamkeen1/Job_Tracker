@@ -9,7 +9,12 @@ export default function JobTracker({ onPracticeDebug }) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [generatingInsight, setGeneratingInsight] = useState(null);
+  const [generatingFollowUp, setGeneratingFollowUp] = useState(null);
+
+  const [insightModal, setInsightModal] = useState(null);
+  const [followUpModal, setFollowUpModal] = useState(null);
 
   const [form, setForm] = useState({
     company: "",
@@ -25,7 +30,7 @@ export default function JobTracker({ onPracticeDebug }) {
       setLoading(true);
       setError("");
       const data = await api.listJobs();
-      setJobs(data);
+      setJobs(Array.isArray(data) ? data : []);
     } catch (e) {
       setError(e.message || "Failed to load applications.");
     } finally {
@@ -72,16 +77,15 @@ export default function JobTracker({ onPracticeDebug }) {
   }
 
   async function onStatusChange(jobId, status) {
-    const note =
-      status === "rejected"
-        ? "Status moved to rejected by user"
-        : "Status updated";
-
     try {
       setError("");
-      await api.updateStatus(jobId, { status, note });
+      await api.updateJob(jobId, { status });
+
       logActivity("status_update", { status });
-      await loadJobs();
+
+      setJobs((prev) =>
+        prev.map((job) => (job.id === jobId ? { ...job, status } : job))
+      );
     } catch (e) {
       setError(e.message || "Failed to update status.");
     }
@@ -98,25 +102,54 @@ export default function JobTracker({ onPracticeDebug }) {
     }
   }
 
-  async function generateAIInsight(jobId) {
+  async function generateAIInsight(job) {
     try {
       setError("");
-      setGeneratingInsight(jobId);
+      setGeneratingInsight(job.id);
 
-      const response = await api.generateJobInsight(jobId);
+      const response = await api.generateJobInsight(job.id);
+      const insight = response.insight || "No insight generated.";
 
-      setJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId
-            ? { ...job, ai_rejection_reason: response.insight }
-            : job
-        )
-      );
+      setInsightModal({
+        company: job.company,
+        role: job.role,
+        insight,
+      });
     } catch (e) {
       setError(e.message || "Failed to generate AI insight.");
     } finally {
       setGeneratingInsight(null);
     }
+  }
+
+  async function generateFollowUp(job) {
+    try {
+      setError("");
+      setGeneratingFollowUp(job.id);
+
+      const response = await api.generateFollowUp(job.id);
+      const email = response.email || response.follow_up_email || "";
+
+      setFollowUpModal({
+        company: job.company,
+        role: job.role,
+        email,
+      });
+    } catch (e) {
+      setError(e.message || "Failed to generate follow-up email.");
+    } finally {
+      setGeneratingFollowUp(null);
+    }
+  }
+
+  async function copyFollowUp() {
+    if (!followUpModal?.email) return;
+    await navigator.clipboard.writeText(followUpModal.email);
+  }
+
+  async function copyInsight() {
+    if (!insightModal?.insight) return;
+    await navigator.clipboard.writeText(insightModal.insight);
   }
 
   async function handleGmailSync() {
@@ -144,9 +177,7 @@ export default function JobTracker({ onPracticeDebug }) {
             <input
               placeholder="Company"
               value={form.company}
-              onChange={(e) =>
-                setForm({ ...form, company: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
               required
             />
 
@@ -160,9 +191,7 @@ export default function JobTracker({ onPracticeDebug }) {
             <input
               type="date"
               value={form.applied_on}
-              onChange={(e) =>
-                setForm({ ...form, applied_on: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, applied_on: e.target.value })}
               required
             />
 
@@ -231,8 +260,8 @@ export default function JobTracker({ onPracticeDebug }) {
         {loading ? (
           <p>Loading applications...</p>
         ) : (
-          <div className="table-wrap">
-            <table>
+          <div className="table-wrap job-table-wrap">
+            <table className="job-table">
               <thead>
                 <tr>
                   <th>Company</th>
@@ -251,10 +280,11 @@ export default function JobTracker({ onPracticeDebug }) {
                 ) : (
                   jobs.map((job) => (
                     <tr key={job.id}>
-                      <td>{job.company}</td>
-                      <td>{job.role}</td>
+                      <td data-label="Company">{job.company}</td>
 
-                      <td>
+                      <td data-label="Role">{job.role}</td>
+
+                      <td data-label="Status">
                         <select
                           value={job.status}
                           onChange={(e) =>
@@ -269,26 +299,20 @@ export default function JobTracker({ onPracticeDebug }) {
                         </select>
                       </td>
 
-                      <td>
-                        {job.ai_rejection_reason ? (
-                          <div className="ai-insight-text">
-                            {job.ai_rejection_reason}
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="ai-btn"
-                            onClick={() => generateAIInsight(job.id)}
-                            disabled={generatingInsight === job.id}
-                          >
-                            {generatingInsight === job.id
-                              ? "Generating..."
-                              : "Generate"}
-                          </button>
-                        )}
+                      <td data-label="AI Insight">
+                        <button
+                          type="button"
+                          className="ai-btn"
+                          onClick={() => generateAIInsight(job)}
+                          disabled={generatingInsight === job.id}
+                        >
+                          {generatingInsight === job.id
+                            ? "Generating..."
+                            : "Generate"}
+                        </button>
                       </td>
 
-                      <td>
+                      <td data-label="Actions">
                         <div className="job-action-stack">
                           <button
                             type="button"
@@ -296,6 +320,17 @@ export default function JobTracker({ onPracticeDebug }) {
                             onClick={() => practiceDebug(job)}
                           >
                             Practice
+                          </button>
+
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => generateFollowUp(job)}
+                            disabled={generatingFollowUp === job.id}
+                          >
+                            {generatingFollowUp === job.id
+                              ? "Writing..."
+                              : "Follow-up"}
                           </button>
 
                           <button
@@ -315,6 +350,90 @@ export default function JobTracker({ onPracticeDebug }) {
           </div>
         )}
       </article>
+
+      {insightModal && (
+        <div
+          className="insight-modal-backdrop"
+          onClick={() => setInsightModal(null)}
+        >
+          <div className="followup-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="section-topline">
+              <div>
+                <span className="section-kicker">AI Insight</span>
+                <h3>
+                  {insightModal.company} - {insightModal.role}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setInsightModal(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <pre className="followup-email-box">{insightModal.insight}</pre>
+
+            <div className="followup-actions">
+              <button type="button" onClick={copyInsight}>
+                Copy Insight
+              </button>
+
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setInsightModal(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {followUpModal && (
+        <div
+          className="followup-modal-backdrop"
+          onClick={() => setFollowUpModal(null)}
+        >
+          <div className="followup-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="section-topline">
+              <div>
+                <span className="section-kicker">AI Follow-up Email</span>
+                <h3>
+                  {followUpModal.company} - {followUpModal.role}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setFollowUpModal(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <pre className="followup-email-box">{followUpModal.email}</pre>
+
+            <div className="followup-actions">
+              <button type="button" onClick={copyFollowUp}>
+                Copy Email
+              </button>
+
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setFollowUpModal(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
