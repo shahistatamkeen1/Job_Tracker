@@ -1,39 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 
 export default function GmailSync({ onSync }) {
+  const popupRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    async function handleMessage(event) {
-      if (event.origin !== "http://localhost:8000") return;
+    function handleMessage(event) {
+      if (
+        event.origin !== "http://127.0.0.1:8000" &&
+        event.origin !== "http://localhost:8000"
+      ) {
+        return;
+      }
 
       if (event.data?.type === "gmail-auth-success") {
-        const { access_token } = event.data;
+        setSuccess("Gmail connected successfully.");
+        setError("");
+        setLoading(false);
 
-        try {
-          setLoading(true);
-          setError("");
-          setSuccess("");
-
-          const response = await api.syncGmail(access_token);
-
-          setSuccess(response.message || `Synced ${response.synced} job applications from Gmail.`);
-
-          if (onSync) {
-            onSync(response.jobs || []);
-          }
-        } catch (err) {
-          setError(err.message || "Failed to sync Gmail.");
-        } finally {
-          setLoading(false);
+        if (onSync) {
+          onSync([]);
         }
       }
 
       if (event.data?.type === "gmail-auth-error") {
-        setError(event.data.error || "Gmail authentication failed.");
+        setError(event.data.error || "Gmail authorization failed.");
+        setSuccess("");
         setLoading(false);
       }
     }
@@ -50,21 +45,22 @@ export default function GmailSync({ onSync }) {
 
       const { auth_url } = await api.getGmailAuthUrl();
 
-      const width = 520;
-      const height = 650;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
+      if (!auth_url) {
+        throw new Error("Gmail authorization URL was not returned.");
+      }
 
-      const authWindow = window.open(
+      popupRef.current = window.open(
         auth_url,
         "gmail-auth",
-        `width=${width},height=${height},left=${left},top=${top}`
+        "width=560,height=720,left=500,top=100"
       );
 
-      if (!authWindow || authWindow.closed) {
-        setError("Popup blocked. Please enable popups and try again.");
-        setLoading(false);
-      }
+      const timer = setInterval(() => {
+        if (popupRef.current && popupRef.current.closed) {
+          clearInterval(timer);
+          setLoading(false);
+        }
+      }, 700);
     } catch (err) {
       setError(err.message || "Gmail connection failed.");
       setLoading(false);
@@ -76,8 +72,12 @@ export default function GmailSync({ onSync }) {
       <h3>Import from Gmail</h3>
       <p>Automatically extract job applications from your Gmail inbox</p>
 
-      <button onClick={handleGmailLogin} disabled={loading} className="sync-button">
-        {loading ? "Syncing..." : "Connect Gmail"}
+      <button
+        onClick={handleGmailLogin}
+        disabled={loading}
+        className="sync-button"
+      >
+        {loading ? "Connecting..." : "Connect Gmail"}
       </button>
 
       {error && <div className="error-message">{error}</div>}
